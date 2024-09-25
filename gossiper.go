@@ -8,6 +8,12 @@ import (
 	"log"
 )
 
+type Cfg = config.Config
+type EnvCfg = config.EnvConfig
+type QueueCfg = config.QueueConfig
+type ConsumerCfg = config.ConsumerConfig
+type ConsumeCfg = config.ConsumeConfig
+
 // Setup initializes the package with the provided configuration
 func Setup(config config.Config) {
 	color.Set(color.FgGreen)

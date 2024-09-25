@@ -2,18 +2,17 @@ package main
 
 import (
 	"github.com/pieceowater-dev/lotof.lib.gossiper"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/config"
 	"log"
 )
 
 // example of usage
 func main() {
-	conf := config.Config{
-		Env: config.EnvConfig{
+	conf := gossiper.Cfg{
+		Env: gossiper.EnvCfg{
 			Required: []string{"RABBITMQ_DSN"},
 		},
-		AMQPConsumer: config.ConsumerConfig{
-			Queues: []config.QueueConfig{
+		AMQPConsumer: gossiper.ConsumerCfg{
+			Queues: []gossiper.QueueCfg{
 				{
 					Name:       "template_queue",
 					Durable:    true,
@@ -23,7 +22,7 @@ func main() {
 					Args:       nil,
 				},
 			},
-			Consume: []config.ConsumeConfig{
+			Consume: []gossiper.ConsumeCfg{
 				{
 					Queue:     "template_queue",
 					Consumer:  "example_consumer",
