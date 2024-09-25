@@ -16,21 +16,23 @@ jobs:
       - name: Get latest tag
         id: get_tag
         run: |
-          TAG=$(git tag --list | tail -n 1)
-          if [ -z "$TAG" ]; then
-            TAG="v0.0.0"
-          fi
-          echo "LATEST_TAG=${TAG}" >> $GITHUB_ENV
+              TAG=$(git tag --list | tail -n 1)
+              if [ -z "$TAG" ]; then
+                TAG="v0.0.0"
+              fi
+              echo "LATEST_TAG=${TAG}" >> $GITHUB_ENV
 
       - name: Increment patch version
         id: increment_patch
         run: |
-          IFS='.' read -r -a VERSION <<< "${{ env.LATEST_TAG#v}}"
-          PATCH=$((VERSION[2] + 1))
-          NEW_TAG="v${VERSION[0]}.${VERSION[1]}.$PATCH"
-          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+              TAG="${{ env.LATEST_TAG }}"
+              VERSION=${TAG#v}
+              IFS='.' read -r -a VERSION_ARRAY <<< "$VERSION"
+              PATCH=$((VERSION_ARRAY[2] + 1))
+              NEW_TAG="v${VERSION_ARRAY[0]}.${VERSION_ARRAY[1]}.$PATCH"
+              echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
 
       - name: Create new tag
         run: |
-          git tag ${{ env.NEW_TAG }}
-          git push origin ${{ env.NEW_TAG }}
+              git tag ${{ env.NEW_TAG }}
+              git push origin ${{ env.NEW_TAG }}
