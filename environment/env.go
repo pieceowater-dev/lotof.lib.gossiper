@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"errors"
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/tools"
@@ -12,9 +13,13 @@ import (
 // Vars Global variable to store environment variables
 var Vars map[string]string
 
-// Get returns the value of the environment variable or an empty string if not found
-func Get(key string) string {
-	return Vars[key]
+// Get returns the value of the environment variable or an error if not found
+func Get(key string) (string, error) {
+	value, exists := Vars[key]
+	if !exists {
+		return "", errors.New("environment variable not found: " + key)
+	}
+	return value, nil
 }
 
 func LoadEnv() error {
@@ -33,7 +38,7 @@ func MapEnv() {
 }
 
 // Init - Load env and populate global Vars object
-func Init() {
+func Init(required []string) {
 	err := LoadEnv()
 	if err != nil {
 		log.Println("Error loading .env file:", err)
@@ -52,6 +57,15 @@ func Init() {
 	color.Set(color.FgYellow)
 	log.Println("Environment variables initialized:")
 	log.Printf("[%s]", strings.Join(userEnvVars, ", "))
+
+	// Validate required environment variables
+	for _, envKey := range required {
+		_, err := Get(envKey)
+		if err != nil {
+			color.Set(color.FgRed)
+			log.Fatalf("Required environment variable %s not found: %v", envKey, err)
+		}
+	}
 }
 
 // isUserEnvVar checks if the environment variable is user-defined
