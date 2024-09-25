@@ -7,12 +7,12 @@ import (
 
 // example of usage
 func main() {
-	conf := gossiper.Cfg{
-		Env: gossiper.EnvCfg{
+	conf := gossiper.Config{
+		Env: gossiper.EnvConfig{
 			Required: []string{"RABBITMQ_DSN"},
 		},
-		AMQPConsumer: gossiper.AMQPConsumerCfg{
-			Queues: []gossiper.QueueCfg{
+		AMQPConsumer: gossiper.AMQPConsumerConfig{
+			Queues: []gossiper.QueueConfig{
 				{
 					Name:       "template_queue",
 					Durable:    true,
@@ -22,7 +22,7 @@ func main() {
 					Args:       nil,
 				},
 			},
-			Consume: []gossiper.AMQPConsumeCfg{
+			Consume: []gossiper.AMQPConsumeConfig{
 				{
 					Queue:     "template_queue",
 					Consumer:  "example_consumer",

@@ -5,18 +5,18 @@ import (
 	config "github.com/pieceowater-dev/lotof.lib.gossiper/config"
 	network "github.com/pieceowater-dev/lotof.lib.gossiper/consume/mqp"
 	environment "github.com/pieceowater-dev/lotof.lib.gossiper/environment"
+	tools "github.com/pieceowater-dev/lotof.lib.gossiper/tools"
 	"log"
 )
-
-type Cfg = config.Config
-type EnvCfg = config.EnvConfig
-type QueueCfg = config.QueueConfig
-type AMQPConsumerCfg = config.AMQPConsumerConfig
-type AMQPConsumeCfg = config.AMQPConsumeConfig
 
 type Env = environment.Env
 type Net = network.Net
 type Config = config.Config
+type EnvConfig = config.EnvConfig
+type QueueConfig = config.QueueConfig
+type AMQPConsumerConfig = config.AMQPConsumerConfig
+type AMQPConsumeConfig = config.AMQPConsumeConfig
+type Tools = tools.Tools
 
 // Setup initializes the package with the provided configuration
 func Setup(cfg config.Config) {
