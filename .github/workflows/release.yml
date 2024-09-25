@@ -13,24 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python (needed for version management)
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.x'
-
-      - name: Install semver
-        run: pip install semver
-
       - name: Get latest tag
         id: get_tag
         run: |
-          TAG=$(git describe --tags --abbrev=0)
+          TAG=$(git tag --list | tail -n 1)
+          if [ -z "$TAG" ]; then
+            TAG="v0.0.0"
+          fi
           echo "LATEST_TAG=${TAG}" >> $GITHUB_ENV
 
       - name: Increment patch version
         id: increment_patch
         run: |
-          NEW_TAG=$(python -c "import semver; print(semver.bump_patch('${{ env.LATEST_TAG }}'))")
+          IFS='.' read -r -a VERSION <<< "${{ env.LATEST_TAG#v}}"
+          PATCH=$((VERSION[2] + 1))
+          NEW_TAG="v${VERSION[0]}.${VERSION[1]}.$PATCH"
           echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
 
       - name: Create new tag
