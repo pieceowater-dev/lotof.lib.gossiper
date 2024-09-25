@@ -5,7 +5,6 @@ import (
 	"log"
 )
 
-// example of usage
 func main() {
 	conf := gossiper.Config{
 		Env: gossiper.EnvConfig{
@@ -35,9 +34,7 @@ func main() {
 			},
 		},
 	}
-	// Initialize gossiper with configuration
 	gossiper.Setup(conf)
-
-	// Application logic here
+	// Application logic
 	log.Println("Application started")
 }

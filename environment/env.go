@@ -10,12 +10,13 @@ import (
 	"strings"
 )
 
+var EnvVars map[string]string
+
 type Env struct {
-	Vars map[string]string
 }
 
 func (e *Env) Get(key string) (string, error) {
-	value, exists := e.Vars[key]
+	value, exists := EnvVars[key]
 	if !exists {
 		return "", errors.New("environment variable not found: " + key)
 	}
@@ -27,12 +28,12 @@ func (e *Env) LoadEnv() error {
 }
 
 func (e *Env) MapEnv() {
-	e.Vars = make(map[string]string)
+	EnvVars = make(map[string]string)
 	t := &tools.Tools{} // Create an instance of Tools
 	for _, env := range os.Environ() {
 		pair := t.Split(env, '=')
 		if len(pair) == 2 {
-			e.Vars[pair[0]] = pair[1]
+			EnvVars[pair[0]] = pair[1]
 		}
 	}
 }
@@ -46,7 +47,7 @@ func (e *Env) Init(required []string) {
 
 	// List user-defined environment variables
 	var userEnvVars []string
-	for key := range e.Vars {
+	for key := range EnvVars {
 		if e.isUserEnvVar(key) { // Filter out only user-defined env vars
 			userEnvVars = append(userEnvVars, key)
 		}

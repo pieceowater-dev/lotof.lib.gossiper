@@ -9,6 +9,8 @@ import (
 	"log"
 )
 
+var EnvVars = &environment.EnvVars
+
 type Env = environment.Env
 type Net = network.Net
 type Config = config.Config
