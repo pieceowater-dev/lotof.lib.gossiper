@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func SetupConsumers(consumerConfig config.ConsumerConfig) {
+func SetupConsumers(consumerConfig config.AMQPConsumerConfig) {
 	for _, queue := range consumerConfig.Queues {
 		// Setup queue (e.g., declare it in RabbitMQ)
 		log.Printf("Declaring queue: %s (Durable: %t, AutoDelete: %t, Exclusive: %t, NoWait: %t)",

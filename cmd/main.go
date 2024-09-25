@@ -11,7 +11,7 @@ func main() {
 		Env: gossiper.EnvCfg{
 			Required: []string{"RABBITMQ_DSN"},
 		},
-		AMQPConsumer: gossiper.ConsumerCfg{
+		AMQPConsumer: gossiper.AMQPConsumerCfg{
 			Queues: []gossiper.QueueCfg{
 				{
 					Name:       "template_queue",
@@ -22,7 +22,7 @@ func main() {
 					Args:       nil,
 				},
 			},
-			Consume: []gossiper.ConsumeCfg{
+			Consume: []gossiper.AMQPConsumeCfg{
 				{
 					Queue:     "template_queue",
 					Consumer:  "example_consumer",

@@ -5,7 +5,7 @@ import "github.com/streadway/amqp"
 // Config - Custom Configuration structure
 type Config struct {
 	Env          EnvConfig
-	AMQPConsumer ConsumerConfig
+	AMQPConsumer AMQPConsumerConfig
 }
 
 type EnvConfig struct {
@@ -21,12 +21,12 @@ type QueueConfig struct {
 	Args       amqp.Table
 }
 
-type ConsumerConfig struct {
+type AMQPConsumerConfig struct {
 	Queues  []QueueConfig
-	Consume []ConsumeConfig
+	Consume []AMQPConsumeConfig
 }
 
-type ConsumeConfig struct {
+type AMQPConsumeConfig struct {
 	Queue     string
 	Consumer  string
 	AutoAck   bool

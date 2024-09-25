@@ -11,8 +11,8 @@ import (
 type Cfg = config.Config
 type EnvCfg = config.EnvConfig
 type QueueCfg = config.QueueConfig
-type ConsumerCfg = config.ConsumerConfig
-type ConsumeCfg = config.ConsumeConfig
+type AMQPConsumerCfg = config.AMQPConsumerConfig
+type AMQPConsumeCfg = config.AMQPConsumeConfig
 
 // Setup initializes the package with the provided configuration
 func Setup(config config.Config) {
