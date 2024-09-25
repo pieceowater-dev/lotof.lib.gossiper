@@ -1,0 +1,39 @@
+name: Tag and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python (needed for version management)
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: Install semver
+        run: pip install semver
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          echo "LATEST_TAG=${TAG}" >> $GITHUB_ENV
+
+      - name: Increment patch version
+        id: increment_patch
+        run: |
+          NEW_TAG=$(python -c "import semver; print(semver.bump_patch('${{ env.LATEST_TAG }}'))")
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+
+      - name: Create new tag
+        run: |
+          git tag ${{ env.NEW_TAG }}
+          git push origin ${{ env.NEW_TAG }}
