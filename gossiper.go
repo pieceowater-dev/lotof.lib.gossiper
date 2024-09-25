@@ -2,9 +2,9 @@ package gossiper
 
 import (
 	"github.com/fatih/color"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/config"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/consume/mqp"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/environment"
+	config "github.com/pieceowater-dev/lotof.lib.gossiper/config"
+	network "github.com/pieceowater-dev/lotof.lib.gossiper/consume/mqp"
+	environment "github.com/pieceowater-dev/lotof.lib.gossiper/environment"
 	"log"
 )
 
@@ -15,16 +15,18 @@ type AMQPConsumerCfg = config.AMQPConsumerConfig
 type AMQPConsumeCfg = config.AMQPConsumeConfig
 
 // Setup initializes the package with the provided configuration
-func Setup(config config.Config) {
+func Setup(cfg config.Config) {
 	color.Set(color.FgGreen)
 	log.SetFlags(log.LstdFlags)
 	log.Println("Setting up Gossiper...")
 
 	// Initialize environment variables
-	environment.Init(config.Env.Required)
+	env := &environment.Env{}
+	env.Init(cfg.Env.Required)
 
 	// Setup RabbitMQ configuration based on the provided config
-	mqp.SetupConsumers(config.AMQPConsumer)
+	net := &network.Net{ConsumerConfig: cfg.AMQPConsumer}
+	net.SetupAMQPConsumers()
 
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")

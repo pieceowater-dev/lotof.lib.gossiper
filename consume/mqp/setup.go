@@ -1,12 +1,16 @@
-package mqp
+package gossiper
 
 import (
-	"github.com/pieceowater-dev/lotof.lib.gossiper/config"
+	config "github.com/pieceowater-dev/lotof.lib.gossiper/config"
 	"log"
 )
 
-func SetupConsumers(consumerConfig config.AMQPConsumerConfig) {
-	for _, queue := range consumerConfig.Queues {
+type Net struct {
+	ConsumerConfig config.AMQPConsumerConfig
+}
+
+func (n *Net) SetupAMQPConsumers() {
+	for _, queue := range n.ConsumerConfig.Queues {
 		// Setup queue (e.g., declare it in RabbitMQ)
 		log.Printf("Declaring queue: %s (Durable: %t, AutoDelete: %t, Exclusive: %t, NoWait: %t)",
 			queue.Name, queue.Durable, queue.AutoDelete, queue.Exclusive, queue.NoWait)
@@ -17,7 +21,7 @@ func SetupConsumers(consumerConfig config.AMQPConsumerConfig) {
 		// }
 	}
 
-	for _, consume := range consumerConfig.Consume {
+	for _, consume := range n.ConsumerConfig.Consume {
 		// Setup consumer (e.g., start consuming messages from the queue)
 		log.Printf("Setting up consumer for queue: %s (Consumer: %s, AutoAck: %t, Exclusive: %t, NoLocal: %t, NoWait: %t)",
 			consume.Queue, consume.Consumer, consume.AutoAck, consume.Exclusive, consume.NoLocal, consume.NoWait)

@@ -1,54 +1,53 @@
-package environment
+package gossiper
 
 import (
 	"errors"
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/tools"
+	tools "github.com/pieceowater-dev/lotof.lib.gossiper/tools"
 	"log"
 	"os"
 	"strings"
 )
 
-// Vars Global variable to store environment variables
-var Vars map[string]string
+type Env struct {
+	Vars map[string]string
+}
 
-// Get returns the value of the environment variable or an error if not found
-func Get(key string) (string, error) {
-	value, exists := Vars[key]
+func (e *Env) Get(key string) (string, error) {
+	value, exists := e.Vars[key]
 	if !exists {
 		return "", errors.New("environment variable not found: " + key)
 	}
 	return value, nil
 }
 
-func LoadEnv() error {
+func (e *Env) LoadEnv() error {
 	return godotenv.Load()
 }
 
-// MapEnv - Load environment variables into the global map - Vars
-func MapEnv() {
-	Vars = make(map[string]string)
+func (e *Env) MapEnv() {
+	e.Vars = make(map[string]string)
+	t := &tools.Tools{} // Create an instance of Tools
 	for _, env := range os.Environ() {
-		pair := tools.Split(env, '=')
+		pair := t.Split(env, '=')
 		if len(pair) == 2 {
-			Vars[pair[0]] = pair[1]
+			e.Vars[pair[0]] = pair[1]
 		}
 	}
 }
 
-// Init - Load env and populate global Vars object
-func Init(required []string) {
-	err := LoadEnv()
+func (e *Env) Init(required []string) {
+	err := e.LoadEnv()
 	if err != nil {
 		log.Println("Error loading .env file:", err)
 	}
-	MapEnv()
+	e.MapEnv()
 
 	// List user-defined environment variables
 	var userEnvVars []string
-	for key := range Vars {
-		if isUserEnvVar(key) { // Filter out only user-defined env vars
+	for key := range e.Vars {
+		if e.isUserEnvVar(key) { // Filter out only user-defined env vars
 			userEnvVars = append(userEnvVars, key)
 		}
 	}
@@ -60,7 +59,7 @@ func Init(required []string) {
 
 	// Validate required environment variables
 	for _, envKey := range required {
-		_, err := Get(envKey)
+		_, err := e.Get(envKey)
 		if err != nil {
 			color.Set(color.FgRed)
 			log.Fatalf("Required environment variable %s not found: %v", envKey, err)
@@ -68,8 +67,7 @@ func Init(required []string) {
 	}
 }
 
-// isUserEnvVar checks if the environment variable is user-defined
-func isUserEnvVar(key string) bool {
+func (e *Env) isUserEnvVar(key string) bool {
 	systemVars := map[string]bool{
 		"PATH":                 true,
 		"HOME":                 true,

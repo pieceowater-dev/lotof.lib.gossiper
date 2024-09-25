@@ -1,18 +1,22 @@
-package tools
+package gossiper
 
-func Split(s string, sep rune) []string {
+type Tools struct{}
+
+func (t *Tools) Split(s string, sep rune) []string {
 	var parts []string
-	var part string
+	var part []rune
 	for _, c := range s {
 		if c == sep {
-			parts = append(parts, part)
-			part = ""
+			if len(part) > 0 {
+				parts = append(parts, string(part))
+				part = nil
+			}
 		} else {
-			part += string(c)
+			part = append(part, c)
 		}
 	}
-	if part != "" {
-		parts = append(parts, part)
+	if len(part) > 0 {
+		parts = append(parts, string(part))
 	}
 	return parts
 }

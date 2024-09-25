@@ -1,8 +1,7 @@
-package config
+package gossiper
 
 import "github.com/streadway/amqp"
 
-// Config - Custom Configuration structure
 type Config struct {
 	Env          EnvConfig
 	AMQPConsumer AMQPConsumerConfig
@@ -10,6 +9,10 @@ type Config struct {
 
 type EnvConfig struct {
 	Required []string
+}
+
+func (ec *EnvConfig) Validate() error {
+	return nil
 }
 
 type QueueConfig struct {
@@ -34,4 +37,8 @@ type AMQPConsumeConfig struct {
 	NoLocal   bool
 	NoWait    bool
 	Args      amqp.Table
+}
+
+func (acc *AMQPConsumerConfig) Validate() error {
+	return nil
 }
