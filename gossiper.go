@@ -14,6 +14,10 @@ type QueueCfg = config.QueueConfig
 type AMQPConsumerCfg = config.AMQPConsumerConfig
 type AMQPConsumeCfg = config.AMQPConsumeConfig
 
+type Env = environment.Env
+type Net = network.Net
+type Config = config.Config
+
 // Setup initializes the package with the provided configuration
 func Setup(cfg config.Config) {
 	color.Set(color.FgGreen)
