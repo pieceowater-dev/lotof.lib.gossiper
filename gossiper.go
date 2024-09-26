@@ -2,10 +2,10 @@ package gossiper
 
 import (
 	"github.com/fatih/color"
-	config "github.com/pieceowater-dev/lotof.lib.gossiper/config"
-	network "github.com/pieceowater-dev/lotof.lib.gossiper/consume/mqp"
-	environment "github.com/pieceowater-dev/lotof.lib.gossiper/environment"
-	tools "github.com/pieceowater-dev/lotof.lib.gossiper/tools"
+	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
+	network "github.com/pieceowater-dev/lotof.lib.gossiper/internal/consume/mqp"
+	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
+	tools "github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
 	"log"
 )
 

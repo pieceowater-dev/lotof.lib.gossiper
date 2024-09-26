@@ -2,8 +2,8 @@ package gossiper
 
 import (
 	"encoding/json"
-	config "github.com/pieceowater-dev/lotof.lib.gossiper/config"
-	environment "github.com/pieceowater-dev/lotof.lib.gossiper/environment"
+	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
+	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
 	"github.com/streadway/amqp"
 	"log"
 )
