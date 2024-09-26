@@ -13,6 +13,7 @@ var EnvVars = &environment.EnvVars
 
 type Env = environment.Env
 type Net = network.Net
+type AMQMessage = network.DefaultMessage
 type Config = config.Config
 type EnvConfig = config.EnvConfig
 type QueueConfig = config.QueueConfig
@@ -21,7 +22,7 @@ type AMQPConsumeConfig = config.AMQPConsumeConfig
 type Tools = tools.Tools
 
 // Setup initializes the package with the provided configuration
-func Setup(cfg config.Config) {
+func Setup(cfg config.Config, messageHandler func([]byte) interface{}) {
 	color.Set(color.FgGreen)
 	log.SetFlags(log.LstdFlags)
 	log.Println("Setting up Gossiper...")
@@ -30,11 +31,11 @@ func Setup(cfg config.Config) {
 	env := &environment.Env{}
 	env.Init(cfg.Env.Required)
 
-	// Setup RabbitMQ configuration based on the provided config
-	net := &network.Net{ConsumerConfig: cfg.AMQPConsumer}
-	net.SetupAMQPConsumers()
-
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")
 	color.Set(color.Reset)
+
+	// Setup RabbitMQ consumers
+	net := &network.Net{ConsumerConfig: cfg.AMQPConsumer}
+	net.SetupAMQPConsumers(messageHandler)
 }

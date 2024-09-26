@@ -25,6 +25,7 @@ type QueueConfig struct {
 }
 
 type AMQPConsumerConfig struct {
+	DSNEnv  string
 	Queues  []QueueConfig
 	Consume []AMQPConsumeConfig
 }
