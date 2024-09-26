@@ -9,6 +9,7 @@ import (
 	"log"
 )
 
+// EnvVars is a reference to environment variables configuration.
 var EnvVars = &environment.EnvVars
 
 type Env = environment.Env
@@ -23,6 +24,7 @@ type Tools = tools.Tools
 
 // Setup initializes the package with the provided configuration
 func Setup(cfg config.Config, messageHandler func([]byte) interface{}) {
+	_ = EnvVars
 	color.Set(color.FgGreen)
 	log.SetFlags(log.LstdFlags)
 	log.Println("Setting up Gossiper...")
