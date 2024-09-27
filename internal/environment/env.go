@@ -38,7 +38,7 @@ func (e *Env) MapEnv() {
 	EnvVars = make(map[string]string)
 	t := &tools.Tools{} // Instance of Tools to use the Split method.
 	for _, env := range os.Environ() {
-		pair := t.Split(env, '=')
+		pair := t.SplitOnce(env, '=')
 		if len(pair) == 2 {
 			EnvVars[pair[0]] = pair[1] // Store the key-value pair in EnvVars.
 		}

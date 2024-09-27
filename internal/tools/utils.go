@@ -29,6 +29,26 @@ func (t *Tools) Split(s string, sep rune) []string {
 	return parts
 }
 
+// SplitOnce splits a string by the given separator rune once
+func (t *Tools) SplitOnce(s string, sep rune) []string {
+	parts := make([]string, 2)
+	i := 0
+	var part []rune
+	for _, c := range s {
+		if c == sep && i == 0 {
+			parts[i] = string(part)
+			part = nil
+			i++
+		} else {
+			part = append(part, c)
+		}
+	}
+	if i < 2 {
+		parts[i] = string(part)
+	}
+	return parts
+}
+
 // ToString converts any value to a string
 func (t *Tools) ToString(val interface{}) string {
 	return fmt.Sprintf("%v", val)
