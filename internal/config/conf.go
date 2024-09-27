@@ -49,7 +49,7 @@ type AMQPConsumeConfig struct {
 }
 
 // Validate checks if the consumer configuration is valid.
-// Currently returns nil, but this function can be extended to ensure proper validation.
+// Currently, returns nil, but this function can be extended to ensure proper validation.
 func (acc *AMQPConsumerConfig) Validate() error {
 	return nil
 }
