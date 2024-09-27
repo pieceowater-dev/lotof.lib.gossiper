@@ -6,6 +6,7 @@ import (
 	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
+	"strings"
 )
 
 // AMQP holds the RabbitMQ consumer configuration
@@ -64,6 +65,9 @@ func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) interface{}) {
 	}
 	defer ch.Close() // Ensure channel is closed
 
+	// Initialize a list to store queue names
+	var queueNames []string
+
 	// Loop over the configured consumers and set them up
 	for _, consume := range n.ConsumerConfig.Consume {
 		// Start consuming messages from the specified queue
@@ -80,6 +84,9 @@ func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) interface{}) {
 			log.Fatal("Failed to register a consumer:", err)
 			return
 		}
+
+		// Add queue name to the list
+		queueNames = append(queueNames, consume.Queue)
 
 		// Start a goroutine to handle messages asynchronously
 		go func() {
@@ -113,8 +120,12 @@ func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) interface{}) {
 		}()
 	}
 
+	// Join the queue names with the ⇆ separator
+	queueNamesStr := " ⇆" + strings.Join(queueNames, " ⇆")
+
 	// Log that the consumer setup is complete and the service is ready for messages
-	log.Println("Waiting for messages. To exit press CTRL+C")
+	log.Printf("Service successfully started! [%s]", queueNamesStr)
+
 	// Block the function indefinitely, waiting for messages
 	select {}
 }
