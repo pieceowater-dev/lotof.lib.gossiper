@@ -30,7 +30,7 @@ type Tools = tools.Tools
 // Parameters:
 //   - cfg: the configuration structure containing environment and AMQP settings.
 //   - messageHandler: a callback function to handle incoming RabbitMQ messages.
-func Setup(cfg config.Config, messageHandler func([]byte) interface{}) {
+func Setup(cfg config.Config, messageHandler func([]byte) any) {
 	// Reference EnvVars to make sure it's initialized.
 	_ = EnvVars
 

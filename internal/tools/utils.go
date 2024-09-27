@@ -50,7 +50,7 @@ func (t *Tools) SplitOnce(s string, sep rune) []string {
 }
 
 // ToString converts any value to a string
-func (t *Tools) ToString(val interface{}) string {
+func (t *Tools) ToString(val any) string {
 	return fmt.Sprintf("%v", val)
 }
 
@@ -70,7 +70,7 @@ func (t *Tools) Join(arr []string, sep string) string {
 }
 
 // StructToJSON converts a struct to JSON format
-func (t *Tools) StructToJSON(v interface{}) (string, error) {
+func (t *Tools) StructToJSON(v any) (string, error) {
 	bytes, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -79,6 +79,6 @@ func (t *Tools) StructToJSON(v interface{}) (string, error) {
 }
 
 // JSONToStruct converts JSON to a struct
-func (t *Tools) JSONToStruct(data string, v interface{}) error {
+func (t *Tools) JSONToStruct(data string, v any) error {
 	return json.Unmarshal([]byte(data), v)
 }

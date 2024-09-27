@@ -67,7 +67,7 @@ import (
 	"log"
 )
 
-func HandleMessage(msg gossiper.AMQMessage) interface{} {
+func HandleMessage(msg gossiper.AMQMessage) any {
 	log.Printf("Received message: %s", msg.Pattern)
 	return "OK"
 }
@@ -77,7 +77,7 @@ func main() {
 	conf := GetConfig()
 
 	// Initialize and start the consumers
-	gossiper.Setup(conf, func(msg []byte) interface{} {
+	gossiper.Setup(conf, func(msg []byte) any {
 		var customMessage gossiper.AMQMessage
 		err := json.Unmarshal(msg, &customMessage)
 		if err != nil {

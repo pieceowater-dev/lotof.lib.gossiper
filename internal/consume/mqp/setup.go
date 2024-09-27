@@ -17,13 +17,13 @@ type AMQP struct {
 // DefaultMessage defines the default message structure for Gossiper
 // Pattern is the type or category of the message, Data is the payload
 type DefaultMessage struct {
-	Pattern string      `json:"pattern"`
-	Data    interface{} `json:"data"`
+	Pattern string `json:"pattern"`
+	Data    any    `json:"data"`
 }
 
 // DefaultHandleMessage is the default message handler used by Gossiper.
 // It unmarshals the message into a DefaultMessage structure and logs the pattern.
-func DefaultHandleMessage(msg []byte) interface{} {
+func DefaultHandleMessage(msg []byte) any {
 	var defaultMessage DefaultMessage
 	err := json.Unmarshal(msg, &defaultMessage)
 	if err != nil {
@@ -36,7 +36,7 @@ func DefaultHandleMessage(msg []byte) interface{} {
 
 // SetupAMQPConsumers initializes and starts RabbitMQ consumers based on the configuration in AMQP.
 // It processes incoming messages and uses the provided messageHandler to handle them.
-func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) interface{}) {
+func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) any) {
 	// Use the default handler if no custom handler is provided
 	if messageHandler == nil {
 		messageHandler = DefaultHandleMessage

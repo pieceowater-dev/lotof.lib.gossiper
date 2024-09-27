@@ -9,7 +9,7 @@ import (
 // HandleMessage processes incoming RabbitMQ messages.
 // It receives an AMQMessage, logs the pattern, and returns a response.
 // This is where you can add custom logic to route or process messages.
-func HandleMessage(msg gossiper.AMQMessage) interface{} {
+func HandleMessage(msg gossiper.AMQMessage) any {
 	// Log the received message's pattern
 	log.Printf("Received message: %s", msg.Pattern)
 	return "OK" // Return a response; modify this as needed
@@ -41,7 +41,7 @@ func main() {
 
 	// Initialize and start consuming messages
 	// Pass a handler function to process each message
-	gossiper.Setup(conf, func(msg []byte) interface{} {
+	gossiper.Setup(conf, func(msg []byte) any {
 		var customMessage gossiper.AMQMessage
 
 		// Attempt to unmarshal the received message into a custom structure
