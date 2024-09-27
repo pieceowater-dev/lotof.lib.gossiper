@@ -6,7 +6,6 @@ require (
 	github.com/fatih/color v1.17.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/streadway/amqp v1.1.0
 )
 
 require (
