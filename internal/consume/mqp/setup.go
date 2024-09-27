@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
 	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 )
 
