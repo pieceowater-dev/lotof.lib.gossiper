@@ -25,30 +25,31 @@ type AMQPConsumeConfig = config.AMQPConsumeConfig
 type Tools = tools.Tools
 
 // Setup initializes the Gossiper package with the provided configuration and sets up AMQP consumers.
-// It logs the process and handles the setup of environment variables and RabbitMQ consumers.
+// It logs the process, handles the setup of environment variables, and executes a startup function.
 //
 // Parameters:
 //   - cfg: the configuration structure containing environment and AMQP settings.
 //   - messageHandler: a callback function to handle incoming RabbitMQ messages.
-func Setup(cfg config.Config, messageHandler func([]byte) any) {
-	// Reference EnvVars to make sure it's initialized.
+//   - startupFunc: a function to execute after environment initialization.
+func Setup(cfg config.Config, startupFunc func() any, messageHandler func([]byte) any) {
 	_ = EnvVars
 
-	// Log the setup process with green text for visual indication.
 	color.Set(color.FgGreen)
-	log.SetFlags(log.LstdFlags) // Set standard logging flags.
+	log.SetFlags(log.LstdFlags)
 	log.Println("Setting up Gossiper...")
 
-	// Initialize environment variables based on the provided configuration.
 	env := &environment.Env{}
 	env.Init(cfg.Env.Required)
 
-	// Indicate the setup completion with cyan text.
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")
-	color.Set(color.Reset) // Reset text color back to default.
+	color.Set(color.Reset)
 
-	// Setup RabbitMQ consumers using the AMQP configuration and provided message handler.
+	// Execute the provided startup function
+	if startupFunc != nil {
+		startupFunc()
+	}
+
 	net := &network.AMQP{ConsumerConfig: cfg.AMQPConsumer}
 	net.SetupAMQPConsumers(messageHandler)
 }
