@@ -41,19 +41,23 @@ func main() {
 
 	// Initialize and start consuming messages
 	// Pass a handler function to process each message
-	gossiper.Setup(conf, func(msg []byte) any {
-		var customMessage gossiper.AMQMessage
+	gossiper.Setup(
+		conf,
+		nil,
+		func(msg []byte) any {
+			var customMessage gossiper.AMQMessage
 
-		// Attempt to unmarshal the received message into a custom structure
-		err := json.Unmarshal(msg, &customMessage)
-		if err != nil {
-			log.Println("Failed to unmarshal custom message:", err)
-			return nil // Return nil in case of unmarshalling failure
-		}
+			// Attempt to unmarshal the received message into a custom structure
+			err := json.Unmarshal(msg, &customMessage)
+			if err != nil {
+				log.Println("Failed to unmarshal custom message:", err)
+				return nil // Return nil in case of unmarshalling failure
+			}
 
-		// Delegate message processing to the HandleMessage function
-		return HandleMessage(customMessage)
-	})
+			// Delegate message processing to the HandleMessage function
+			return HandleMessage(customMessage)
+		},
+	)
 
 	// Log that the application has started successfully
 	log.Println("Application started")

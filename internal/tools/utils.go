@@ -10,7 +10,7 @@ import (
 type Tools struct{}
 
 // Split splits a string by the given separator rune
-func (t *Tools) Split(s string, sep rune) []string {
+func (inst *Tools) Split(s string, sep rune) []string {
 	var parts []string
 	var part []rune
 	for _, c := range s {
@@ -30,7 +30,7 @@ func (t *Tools) Split(s string, sep rune) []string {
 }
 
 // SplitOnce splits a string by the given separator rune once
-func (t *Tools) SplitOnce(s string, sep rune) []string {
+func (inst *Tools) SplitOnce(s string, sep rune) []string {
 	parts := make([]string, 2)
 	i := 0
 	var part []rune
@@ -50,27 +50,27 @@ func (t *Tools) SplitOnce(s string, sep rune) []string {
 }
 
 // ToString converts any value to a string
-func (t *Tools) ToString(val any) string {
+func (inst *Tools) ToString(val any) string {
 	return fmt.Sprintf("%v", val)
 }
 
 // ToInt converts a string to an integer
-func (t *Tools) ToInt(s string) (int, error) {
+func (inst *Tools) ToInt(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
 // ToBool converts a string to a boolean
-func (t *Tools) ToBool(s string) (bool, error) {
+func (inst *Tools) ToBool(s string) (bool, error) {
 	return strconv.ParseBool(s)
 }
 
 // Join concatenates elements of a slice into a single string with the given separator
-func (t *Tools) Join(arr []string, sep string) string {
+func (inst *Tools) Join(arr []string, sep string) string {
 	return strings.Join(arr, sep)
 }
 
 // StructToJSON converts a struct to JSON format
-func (t *Tools) StructToJSON(v any) (string, error) {
+func (inst *Tools) StructToJSON(v any) (string, error) {
 	bytes, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -79,6 +79,6 @@ func (t *Tools) StructToJSON(v any) (string, error) {
 }
 
 // JSONToStruct converts JSON to a struct
-func (t *Tools) JSONToStruct(data string, v any) error {
+func (inst *Tools) JSONToStruct(data string, v any) error {
 	return json.Unmarshal([]byte(data), v)
 }

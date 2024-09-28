@@ -16,13 +16,27 @@ var EnvVars = &environment.EnvVars
 
 type Env = environment.Env
 type AMQP = network.AMQP
+
 type AMQMessage = network.DefaultMessage
+
 type Config = config.Config
 type EnvConfig = config.EnvConfig
 type QueueConfig = config.QueueConfig
 type AMQPConsumerConfig = config.AMQPConsumerConfig
 type AMQPConsumeConfig = config.AMQPConsumeConfig
 type Tools = tools.Tools
+
+// Satisfies is an alias for the Tools.Satisfies method.
+func Satisfies(data any, dest any) error {
+	inst := Tools{}
+	return inst.Satisfies(data, dest)
+}
+
+// LogAction is an alias for the Tools.LogAction method.
+func LogAction(action string, data any) {
+	inst := Tools{}
+	inst.LogAction(action, data)
+}
 
 // Setup initializes the Gossiper package with the provided configuration and sets up AMQP consumers.
 // It logs the process, handles the setup of environment variables, and executes a startup function.
