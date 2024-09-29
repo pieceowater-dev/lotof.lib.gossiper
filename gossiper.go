@@ -6,6 +6,7 @@ import (
 	network "github.com/pieceowater-dev/lotof.lib.gossiper/internal/consume/mqp"
 	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
 	tools "github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
+	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 )
 
 // ENVIRONMENT
@@ -86,18 +87,13 @@ const (
 	ONE_HUNDRED  = tools.ONE_HUNDRED
 )
 
-// DefaultFilter is an alias for the Tools.DefaultFilter method.
-type DefaultFilter[T any] struct {
-	tools.DefaultFilter[T]
-}
-
 // PaginatedEntity is a wrapper for tools.PaginatedEntity
 type PaginatedEntity[T any] struct {
 	tools.PaginatedEntity[T]
 }
 
 // NewFilter creates a new DefaultFilter instance.
-func NewFilter[T any]() tools.DefaultFilter[T] {
+func NewFilter[T any]() t.DefaultFilter[T] {
 	return tools.NewDefaultFilter[T]()
 }
 
