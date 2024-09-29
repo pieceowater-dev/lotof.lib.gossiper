@@ -58,6 +58,11 @@ func LogAction(action string, data any) {
 	inst.LogAction(action, data)
 }
 
+// NewServiceError is an alias for the Tools.NewServiceError method.
+func NewServiceError(message string) *tools.ServiceError {
+	return tools.NewServiceError(message)
+}
+
 // Enum with aliases for predefined pagination page length
 const (
 	TEN          = tools.TEN
