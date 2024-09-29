@@ -32,7 +32,7 @@ func Satisfies(data any, dest any) error {
 	return inst.Satisfies(data, dest)
 }
 
-// LogAction is an alias for the Tools.LogAction method.
+// LogAction is an alias for the Tools.LogAction method!
 func LogAction(action string, data any) {
 	inst := Tools{}
 	inst.LogAction(action, data)
