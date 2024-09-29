@@ -96,7 +96,12 @@ const (
 	ONE_HUNDRED  = tools.ONE_HUNDRED
 )
 
-// ToPaginated PaginatedEntity directly uses tools.PaginatedEntity
+// PaginatedEntity is an alias for the tools.PaginatedEntity.
+type PaginatedEntity[T any] struct {
+	tools.PaginatedEntity[T]
+}
+
+// ToPaginated directly uses tools.PaginatedEntity
 func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
 	return tools.ToPaginated[T](items, count)
 }
