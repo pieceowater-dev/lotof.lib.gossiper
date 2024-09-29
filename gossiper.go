@@ -43,14 +43,17 @@ func NewServiceError(message string) *tools.ServiceError {
 	return tools.NewServiceError(message)
 }
 
+// ToPaginated is an alias for the Tools.ToPaginated method.
 func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
 	return tools.ToPaginated[T](items, count)
 }
 
+// DefaultFilter is an alias for the Tools.DefaultFilter method.
 type DefaultFilter[T any] struct {
 	tools.DefaultFilter[T]
 }
 
+// NewFilter is an alias for the Tools.NewFilter method.
 func NewFilter[T any]() tools.DefaultFilter[T] {
 	return tools.NewDefaultFilter[T]()
 }
