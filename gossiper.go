@@ -1,29 +1,49 @@
 package gossiper
 
 import (
-	"github.com/fatih/color"
+	bootstrap "github.com/pieceowater-dev/lotof.lib.gossiper/internal/bootstrap"
 	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
 	network "github.com/pieceowater-dev/lotof.lib.gossiper/internal/consume/mqp"
 	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
 	tools "github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
-	"log"
 )
 
-// EnvVars is a global reference to the environment variables map initialized by the Env handler.
+// ENVIRONMENT
+
+// Env is an alias for the environment.Env
+type Env = environment.Env
+
+// EnvVars is an pointer alias for the &environment.EnvVars
 var EnvVars = &environment.EnvVars
 
-// Type aliases for simplified usage throughout the package
+// NETWORK
 
-type Env = environment.Env
+// AMQP is an alias for the network.AMQP
 type AMQP = network.AMQP
 
+// AMQMessage is an alias for the network.DefaultMessage
 type AMQMessage = network.DefaultMessage
 
+// CONFIG
+
+// Config is an alias for the config.Config
 type Config = config.Config
+
+// EnvConfig is an alias for the config.EnvConfig
 type EnvConfig = config.EnvConfig
+
+// QueueConfig is an alias for the config.QueueConfig
 type QueueConfig = config.QueueConfig
+
+// AMQPConsumerConfig is an alias for the config.AMQPConsumerConfig
 type AMQPConsumerConfig = config.AMQPConsumerConfig
+
+// AMQPConsumeConfig is an alias for the config.AMQPConsumeConfig
 type AMQPConsumeConfig = config.AMQPConsumeConfig
+
+//TOOLS
+
+// Tools is an alias for the tools.Tools
 type Tools = tools.Tools
 
 // Satisfies is an alias for the Tools.Satisfies method.
@@ -32,7 +52,7 @@ func Satisfies(data any, dest any) error {
 	return inst.Satisfies(data, dest)
 }
 
-// LogAction is an alias for the Tools.LogAction method!
+// LogAction is an alias for the Tools.LogAction method.
 func LogAction(action string, data any) {
 	inst := Tools{}
 	inst.LogAction(action, data)
@@ -43,21 +63,17 @@ func NewServiceError(message string) *tools.ServiceError {
 	return tools.NewServiceError(message)
 }
 
-// ToPaginated is an alias for the Tools.ToPaginated method.
-func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
-	return tools.ToPaginated[T](items, count)
-}
-
 // DefaultFilter is an alias for the Tools.DefaultFilter method.
 type DefaultFilter[T any] struct {
 	tools.DefaultFilter[T]
 }
 
-// NewFilter is an alias for the Tools.NewFilter method.
+// NewFilter creates a new DefaultFilter instance.
 func NewFilter[T any]() tools.DefaultFilter[T] {
 	return tools.NewDefaultFilter[T]()
 }
 
+// Enum with aliases for predefined pagination page length
 const (
 	TEN          = tools.TEN
 	FIFTEEN      = tools.FIFTEEN
@@ -80,32 +96,17 @@ const (
 	ONE_HUNDRED  = tools.ONE_HUNDRED
 )
 
-// Setup initializes the Gossiper package with the provided configuration and sets up AMQP consumers.
-// It logs the process, handles the setup of environment variables, and executes a startup function.
-//
-// Parameters:
-//   - cfg: the configuration structure containing environment and AMQP settings.
-//   - messageHandler: a callback function to handle incoming RabbitMQ messages.
-//   - startupFunc: a function to execute after environment initialization.
+// ToPaginated PaginatedEntity directly uses tools.PaginatedEntity
+func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
+	return tools.ToPaginated[T](items, count)
+}
+
+// BOOTSTRAP
+
+type Bootstrap = bootstrap.Bootstrap
+
+// Setup is an alias for the Bootstrap.Setup method.
 func Setup(cfg config.Config, startupFunc func() any, messageHandler func([]byte) any) {
-	_ = EnvVars
-
-	color.Set(color.FgGreen)
-	log.SetFlags(log.LstdFlags)
-	log.Println("Setting up Gossiper...")
-
-	env := &environment.Env{}
-	env.Init(cfg.Env.Required)
-
-	color.Set(color.FgCyan)
-	log.Println("Setup complete.")
-	color.Set(color.Reset)
-
-	// Execute the provided startup function
-	if startupFunc != nil {
-		startupFunc()
-	}
-
-	net := &network.AMQP{ConsumerConfig: cfg.AMQPConsumer}
-	net.SetupAMQPConsumers(messageHandler)
+	b := Bootstrap{}
+	b.Setup(cfg, startupFunc, messageHandler)
 }
