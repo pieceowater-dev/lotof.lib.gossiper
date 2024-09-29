@@ -77,7 +77,7 @@ func main() {
 	conf := GetConfig()
 
 	// Initialize and start the consumers
-	gossiper.Setup(conf, func(msg []byte) any {
+	gossiper.Setup(conf, nil, func(msg []byte) any {
 		var customMessage gossiper.AMQMessage
 		err := json.Unmarshal(msg, &customMessage)
 		if err != nil {
