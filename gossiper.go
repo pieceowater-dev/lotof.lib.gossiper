@@ -43,7 +43,7 @@ func NewServiceError(message string) *tools.ServiceError {
 	return tools.NewServiceError(message)
 }
 
-func ToPaginated[T any](data []any) tools.PaginatedEntity[T] {
+func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
 	return tools.ToPaginated[T](data)
 }
 
