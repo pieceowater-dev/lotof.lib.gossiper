@@ -47,8 +47,8 @@ func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
 	return tools.ToPaginated[T](items, count)
 }
 
-type DefaultFilter[T any] struct {
-	tools.DefaultFilter[T]
+func NewFilter[T any]() tools.DefaultFilter[T] {
+	return tools.NewDefaultFilter[T]()
 }
 
 const (

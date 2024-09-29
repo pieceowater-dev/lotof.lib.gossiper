@@ -53,3 +53,17 @@ type DefaultFilter[T any] struct {
 	Sort       Sort[T]   `json:"sort,omitempty"`       // Sort parameters
 	Pagination Paginated `json:"pagination,omitempty"` // Pagination parameters
 }
+
+// NewDefaultFilter - Constructor for DefaultFilter with default pagination values.
+func NewDefaultFilter[T any]() DefaultFilter[T] {
+	return DefaultFilter[T]{
+		Sort: Sort[T]{
+			Field: "id",
+			By:    DESC,
+		},
+		Pagination: Paginated{
+			Page:   1,
+			Length: TEN,
+		},
+	}
+}
