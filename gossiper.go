@@ -38,6 +38,41 @@ func LogAction(action string, data any) {
 	inst.LogAction(action, data)
 }
 
+// NewServiceError is an alias for the Tools.NewServiceError method.
+func NewServiceError(message string) *tools.ServiceError {
+	return tools.NewServiceError(message)
+}
+
+func ToPaginated[T any](data []any) tools.PaginatedEntity[T] {
+	return tools.ToPaginated[T](data)
+}
+
+type DefaultFilter[T any] struct {
+	tools.DefaultFilter[T]
+}
+
+const (
+	TEN          = tools.TEN
+	FIFTEEN      = tools.FIFTEEN
+	TWENTY       = tools.TWENTY
+	TWENTY_FIVE  = tools.TWENTY_FIVE
+	THIRTY       = tools.THIRTY
+	THIRTY_FIVE  = tools.THIRTY_FIVE
+	FORTY        = tools.FORTY
+	FORTY_FIVE   = tools.FORTY_FIVE
+	FIFTY        = tools.FIFTY
+	FIFTY_FIVE   = tools.FIFTY_FIVE
+	SIXTY        = tools.SIXTY
+	SIXTY_FIVE   = tools.SIXTY_FIVE
+	SEVENTY      = tools.SEVENTY
+	SEVENTY_FIVE = tools.SEVENTY_FIVE
+	EIGHTY       = tools.EIGHTY
+	EIGHTY_FIVE  = tools.EIGHTY_FIVE
+	NINETY       = tools.NINETY
+	NINETY_FIVE  = tools.NINETY_FIVE
+	ONE_HUNDRED  = tools.ONE_HUNDRED
+)
+
 // Setup initializes the Gossiper package with the provided configuration and sets up AMQP consumers.
 // It logs the process, handles the setup of environment variables, and executes a startup function.
 //
