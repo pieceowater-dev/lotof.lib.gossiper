@@ -44,7 +44,7 @@ func NewServiceError(message string) *tools.ServiceError {
 }
 
 func ToPaginated[T any](items []T, count int) tools.PaginatedEntity[T] {
-	return tools.ToPaginated[T](data)
+	return tools.ToPaginated[T](items, count)
 }
 
 type DefaultFilter[T any] struct {
