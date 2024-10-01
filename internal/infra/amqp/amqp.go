@@ -1,9 +1,9 @@
-package gossiper
+package amqp
 
 import (
 	"encoding/json"
-	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
-	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"strings"
@@ -11,7 +11,7 @@ import (
 
 // AMQP holds the RabbitMQ consumer configuration
 type AMQP struct {
-	ConsumerConfig config.AMQPConsumerConfig // Configuration for RabbitMQ consumers
+	ConsumerConfig conf.AMQPConsumerConfig // Configuration for RabbitMQ consumers
 }
 
 // DefaultMessage defines the default message structure for Gossiper
@@ -43,8 +43,8 @@ func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) any) {
 	}
 
 	// Load RabbitMQ DSN from environment variables
-	env := environment.Env{}
-	dsn, err := env.Get(n.ConsumerConfig.DSNEnv)
+	envInst := env.Env{}
+	dsn, err := envInst.Get(n.ConsumerConfig.DSNEnv)
 	if err != nil {
 		panic(err) // Panic if the DSN is missing or invalid
 	}

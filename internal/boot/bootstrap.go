@@ -1,10 +1,10 @@
-package gossiper
+package boot
 
 import (
 	"github.com/fatih/color"
-	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
-	network "github.com/pieceowater-dev/lotof.lib.gossiper/internal/consume/mqp"
-	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra"
 	"log"
 )
 
@@ -18,13 +18,13 @@ type Bootstrap struct {
 //   - cfg: the configuration structure containing environment and AMQP settings.
 //   - messageHandler: a callback function to handle incoming RabbitMQ messages.
 //   - startupFunc: a function to execute after environment initialization.
-func (b *Bootstrap) Setup(cfg config.Config, startupFunc func() any, messageHandler func([]byte) any) {
+func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandler func([]byte) any) {
 	color.Set(color.FgGreen)
 	log.SetFlags(log.LstdFlags)
 	log.Println("Setting up Gossiper...")
 
-	env := &environment.Env{}
-	env.Init(cfg.Env.Required)
+	envInst := &env.Env{}
+	envInst.Init(cfg.Env.Required)
 
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")
@@ -35,6 +35,6 @@ func (b *Bootstrap) Setup(cfg config.Config, startupFunc func() any, messageHand
 		startupFunc()
 	}
 
-	net := &network.AMQP{ConsumerConfig: cfg.AMQPConsumer}
+	net := &infra.AMQP{ConsumerConfig: cfg.AMQPConsumer}
 	net.SetupAMQPConsumers(messageHandler)
 }

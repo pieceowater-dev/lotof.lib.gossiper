@@ -1,4 +1,4 @@
-package gossiper
+package tools
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package gossiper
+package errors
 
 // ServiceError represents a custom error used throughout the application.
 type ServiceError struct {

@@ -1,48 +1,51 @@
 package gossiper
 
 import (
-	bootstrap "github.com/pieceowater-dev/lotof.lib.gossiper/internal/bootstrap"
-	config "github.com/pieceowater-dev/lotof.lib.gossiper/internal/config"
-	network "github.com/pieceowater-dev/lotof.lib.gossiper/internal/consume/mqp"
-	environment "github.com/pieceowater-dev/lotof.lib.gossiper/internal/environment"
-	tools "github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/boot"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/errors"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/filter"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/pagination"
 	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 )
 
-// ENVIRONMENT
+/* ENVIRONMENT */
 
 // Env is an alias for the environment.Env
-type Env = environment.Env
+type Env = env.Env
 
 // EnvVars is a pointer alias for the &environment.EnvVars
-var EnvVars = &environment.EnvVars
+var EnvVars = &env.EnvVars
 
-// NETWORK
+/* NETWORK */
 
 // AMQP is an alias for the network.AMQP
-type AMQP = network.AMQP
+type AMQP = infra.AMQP
 
-// AMQMessage is an alias for the network.DefaultMessage
-type AMQMessage = network.DefaultMessage
+// AMQMessage is an alias for the infra.DefaultMessage
+type AMQMessage = infra.DefaultMessage
 
-// CONFIG
+/* CONFIG */
 
 // Config is an alias for the config.Config
-type Config = config.Config
+type Config = conf.Config
 
 // EnvConfig is an alias for the config.EnvConfig
-type EnvConfig = config.EnvConfig
+type EnvConfig = conf.EnvConfig
 
 // QueueConfig is an alias for the config.QueueConfig
-type QueueConfig = config.QueueConfig
+type QueueConfig = conf.QueueConfig
 
 // AMQPConsumerConfig is an alias for the config.AMQPConsumerConfig
-type AMQPConsumerConfig = config.AMQPConsumerConfig
+type AMQPConsumerConfig = conf.AMQPConsumerConfig
 
 // AMQPConsumeConfig is an alias for the config.AMQPConsumeConfig
-type AMQPConsumeConfig = config.AMQPConsumeConfig
+type AMQPConsumeConfig = conf.AMQPConsumeConfig
 
-// TOOLS
+/* TOOLS */
 
 // Tools is an alias for the tools.Tools
 type Tools = tools.Tools
@@ -60,54 +63,54 @@ func LogAction(action string, data any) {
 }
 
 // NewServiceError is an alias for the Tools.NewServiceError method.
-func NewServiceError(message string) *tools.ServiceError {
-	return tools.NewServiceError(message)
+func NewServiceError(message string) *errors.ServiceError {
+	return errors.NewServiceError(message)
 }
 
 // Enum with aliases for predefined pagination page length
 const (
-	TEN          = tools.TEN
-	FIFTEEN      = tools.FIFTEEN
-	TWENTY       = tools.TWENTY
-	TWENTY_FIVE  = tools.TWENTY_FIVE
-	THIRTY       = tools.THIRTY
-	THIRTY_FIVE  = tools.THIRTY_FIVE
-	FORTY        = tools.FORTY
-	FORTY_FIVE   = tools.FORTY_FIVE
-	FIFTY        = tools.FIFTY
-	FIFTY_FIVE   = tools.FIFTY_FIVE
-	SIXTY        = tools.SIXTY
-	SIXTY_FIVE   = tools.SIXTY_FIVE
-	SEVENTY      = tools.SEVENTY
-	SEVENTY_FIVE = tools.SEVENTY_FIVE
-	EIGHTY       = tools.EIGHTY
-	EIGHTY_FIVE  = tools.EIGHTY_FIVE
-	NINETY       = tools.NINETY
-	NINETY_FIVE  = tools.NINETY_FIVE
-	ONE_HUNDRED  = tools.ONE_HUNDRED
+	TEN          = filter.TEN
+	FIFTEEN      = filter.FIFTEEN
+	TWENTY       = filter.TWENTY
+	TWENTY_FIVE  = filter.TWENTY_FIVE
+	THIRTY       = filter.THIRTY
+	THIRTY_FIVE  = filter.THIRTY_FIVE
+	FORTY        = filter.FORTY
+	FORTY_FIVE   = filter.FORTY_FIVE
+	FIFTY        = filter.FIFTY
+	FIFTY_FIVE   = filter.FIFTY_FIVE
+	SIXTY        = filter.SIXTY
+	SIXTY_FIVE   = filter.SIXTY_FIVE
+	SEVENTY      = filter.SEVENTY
+	SEVENTY_FIVE = filter.SEVENTY_FIVE
+	EIGHTY       = filter.EIGHTY
+	EIGHTY_FIVE  = filter.EIGHTY_FIVE
+	NINETY       = filter.NINETY
+	NINETY_FIVE  = filter.NINETY_FIVE
+	ONE_HUNDRED  = filter.ONE_HUNDRED
 )
 
 // PaginatedEntity is a wrapper for tools.PaginatedEntity
 type PaginatedEntity[T any] struct {
-	tools.PaginatedEntity[T]
+	pagination.PaginatedEntity[T]
 }
 
 // NewFilter creates a new DefaultFilter instance.
 func NewFilter[T any]() t.DefaultFilter[T] {
-	return tools.NewDefaultFilter[T]()
+	return filter.NewDefaultFilter[T]()
 }
 
 // ToPaginated PaginatedEntity directly uses tools.PaginatedEntity
 func ToPaginated[T any](items []T, count int) PaginatedEntity[T] {
-	return PaginatedEntity[T]{tools.ToPaginated[T](items, count)}
+	return PaginatedEntity[T]{pagination.ToPaginated[T](items, count)}
 }
 
-// BOOTSTRAP
+/* BOOTSTRAP */
 
-type Bootstrap = bootstrap.Bootstrap
+type Bootstrap = boot.Bootstrap
 
 // Setup is an alias for the Bootstrap.Setup method.
-func Setup(cfg config.Config, startupFunc func() any, messageHandler func([]byte) any) {
+func Setup(cfg conf.Config, startupFunc func() any, messageHandler func([]byte) any) {
 	b := Bootstrap{}
 	b.Setup(cfg, startupFunc, messageHandler)
 }

@@ -1,4 +1,4 @@
-package gossiper
+package conf
 
 import "github.com/rabbitmq/amqp091-go"
 

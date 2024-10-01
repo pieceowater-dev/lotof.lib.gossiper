@@ -1,4 +1,4 @@
-package gossiper
+package env
 
 import (
 	"errors"

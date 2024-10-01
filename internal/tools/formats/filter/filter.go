@@ -1,4 +1,4 @@
-package gossiper
+package filter
 
 import t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 

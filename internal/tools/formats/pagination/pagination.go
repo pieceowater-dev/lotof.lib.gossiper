@@ -1,4 +1,4 @@
-package gossiper
+package pagination
 
 // EntityInfo provides additional metadata for a paginated entity.
 type EntityInfo struct {
