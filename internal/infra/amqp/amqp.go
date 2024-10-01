@@ -1,7 +1,6 @@
 package amqp
 
 import (
-	"encoding/json"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -14,30 +13,9 @@ type AMQP struct {
 	ConsumerConfig conf.AMQPConsumerConfig // Configuration for RabbitMQ consumers
 }
 
-// DefaultMessage defines the default message structure for Gossiper
-// Pattern is the type or category of the message, Data is the payload
-type DefaultMessage struct {
-	Pattern string `json:"pattern"`
-	Data    any    `json:"data"`
-}
-
-// DefaultHandleMessage is the default message handler used by Gossiper.
-// It unmarshals the message into a DefaultMessage structure and logs the pattern.
-func DefaultHandleMessage(msg []byte) any {
-	var defaultMessage DefaultMessage
-	err := json.Unmarshal(msg, &defaultMessage)
-	if err != nil {
-		log.Println("Failed to unmarshal message:", err)
-		return nil
-	}
-	log.Printf("Received message: %s", defaultMessage.Pattern)
-	return "OK" // Default response; modify based on message type
-}
-
 // SetupAMQPConsumers initializes and starts RabbitMQ consumers based on the configuration in AMQP.
 // It processes incoming messages and uses the provided messageHandler to handle them.
 func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) any) {
-	// Use the default handler if no custom handler is provided
 	if messageHandler == nil {
 		messageHandler = DefaultHandleMessage
 	}
@@ -46,86 +24,62 @@ func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) any) {
 	envInst := env.Env{}
 	dsn, err := envInst.Get(n.ConsumerConfig.DSNEnv)
 	if err != nil {
-		panic(err) // Panic if the DSN is missing or invalid
+		log.Fatalf("Error loading DSN: %v", err)
 	}
 
 	// Establish a connection to RabbitMQ
 	conn, err := amqp.Dial(dsn)
-	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ:", err)
-		return
-	}
+	handleError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close() // Ensure connection is closed when done
 
 	// Open a channel over the connection
 	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal("Failed to open a channel:", err)
-		return
-	}
+	handleError(err, "Failed to open a channel")
 	defer ch.Close() // Ensure channel is closed
 
-	// Initialize a list to store queue names
 	var queueNames []string
 
-	// Loop over the configured consumers and set them up
-	for _, consume := range n.ConsumerConfig.Consume {
-		// Start consuming messages from the specified queue
-		msgs, err := ch.Consume(
-			consume.Queue,     // Queue name
-			"",                // Consumer tag (empty means auto-generated)
-			consume.AutoAck,   // Automatic message acknowledgment
-			consume.Exclusive, // Exclusive consumption by this consumer
-			consume.NoLocal,   // Prevent consuming messages published on the same connection
-			consume.NoWait,    // Do not wait for a server response
-			consume.Args,      // Additional arguments
-		)
-		if err != nil {
-			log.Fatal("Failed to register a consumer:", err)
-			return
+	// Declare queues first from QueueConfig
+	for _, queueConfig := range n.ConsumerConfig.Queues {
+		if err := declareQueue(ch, queueConfig); err != nil {
+			log.Fatalf("Failed to declare queue: %v", err)
 		}
-
-		// Add queue name to the list
-		queueNames = append(queueNames, consume.Queue)
-
-		// Start a goroutine to handle messages asynchronously
-		go func() {
-			for d := range msgs {
-				// Process each message using the handler
-				response := messageHandler(d.Body)
-
-				// If the message has a ReplyTo address, send a response
-				if d.ReplyTo != "" {
-					responseBytes, _ := json.Marshal(response) // Marshal the response into JSON
-
-					// Publish the response to the reply queue
-					err = ch.Publish(
-						"",        // Exchange (empty string for default)
-						d.ReplyTo, // Routing key (use the ReplyTo property)
-						false,     // Mandatory flag
-						false,     // Immediate flag
-						amqp.Publishing{
-							ContentType:   "application/json", // Set content type to JSON
-							CorrelationId: d.CorrelationId,    // Maintain correlation ID
-							Body:          responseBytes,      // Set the body to the marshaled response
-						},
-					)
-
-					// Log any error during response publication
-					if err != nil {
-						log.Println("Failed to publish response:", err)
-					}
-				}
-			}
-		}()
+		queueNames = append(queueNames, queueConfig.Name)
 	}
 
-	// Join the queue names with the ⇆ separator
-	queueNamesStr := " ⇆" + strings.Join(queueNames, " ⇆")
+	// Now set up the consumers from AMQPConsumeConfig
+	for _, consumeConfig := range n.ConsumerConfig.Consume {
+		msgs, err := ch.Consume(
+			consumeConfig.Queue,
+			consumeConfig.Consumer,
+			consumeConfig.AutoAck,
+			consumeConfig.Exclusive,
+			consumeConfig.NoLocal,
+			consumeConfig.NoWait,
+			consumeConfig.Args,
+		)
+		handleError(err, "Failed to register a consumer")
+
+		// Start a goroutine to handle messages asynchronously
+		go n.handleMessages(msgs, ch, messageHandler)
+	}
 
 	// Log that the consumer setup is complete and the service is ready for messages
-	log.Printf("Service successfully started! [%s]", queueNamesStr)
+	log.Printf("Service successfully started! [%s]", " ⇆"+strings.Join(queueNames, " ⇆"))
 
 	// Block the function indefinitely, waiting for messages
 	select {}
+}
+
+// declareQueue declares a RabbitMQ queue if it doesn't already exist.
+func declareQueue(ch *amqp.Channel, queueConfig conf.QueueConfig) error {
+	_, err := ch.QueueDeclare(
+		queueConfig.Name,
+		queueConfig.Durable,
+		queueConfig.AutoDelete,
+		queueConfig.Exclusive,
+		queueConfig.NoWait,
+		queueConfig.Args, // Additional arguments for queue declaration
+	)
+	return err
 }

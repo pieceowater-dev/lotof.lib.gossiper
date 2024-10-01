@@ -22,9 +22,6 @@ var EnvVars = &env.EnvVars
 // AMQP is an alias for the infra.AMQP type, providing methods for AMQP messaging.
 type AMQP = infra.AMQP
 
-// DefaultMessage is an alias for the infra.DefaultMessage type, representing default message structure.
-type DefaultMessage = infra.DefaultMessage
-
 // Config is an alias for the conf.Config type, which holds application configuration settings.
 type Config = conf.Config
 

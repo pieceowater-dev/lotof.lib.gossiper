@@ -19,7 +19,7 @@ var EnvVars = &internal.EnvVars
 type AMQP = internal.AMQP
 
 // AMQMessage is an alias for the internal.DefaultMessage.
-type AMQMessage = internal.DefaultMessage
+type AMQMessage = t.DefaultMessage
 
 /* CONFIG */
 
