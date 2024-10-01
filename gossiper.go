@@ -56,8 +56,8 @@ func LogAction(action string, data any) {
 }
 
 // NewServiceError creates a new internal.ServiceError instance.
-func NewServiceError(message string) *internal.ServiceError {
-	return internal.NewServiceError(message)
+func NewServiceError(message string, statusCode ...int) *internal.ServiceError {
+	return internal.NewServiceError(message, statusCode...)
 }
 
 // Enum with aliases for predefined pagination page length.

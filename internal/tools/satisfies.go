@@ -84,7 +84,7 @@ func (inst *Tools) setDefaultsAndConvert(dest any) {
 
 // convertFields converts string values in the provided data map to the appropriate types
 // in the destination struct. It supports converting basic types and pointer types.
-func (inst *Tools) convertFields(data map[string]interface{}, dest any) error {
+func (inst *Tools) convertFields(data map[string]any, dest any) error {
 	v := reflect.ValueOf(dest).Elem()
 
 	for key, value := range data {
@@ -198,7 +198,7 @@ func (inst *Tools) Satisfies(data any, dest any) error {
 		return err
 	}
 
-	if dataMap, ok := data.(map[string]interface{}); ok {
+	if dataMap, ok := data.(map[string]any); ok {
 		err = inst.convertFields(dataMap, dest)
 		if err != nil {
 			return err

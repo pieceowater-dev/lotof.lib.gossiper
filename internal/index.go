@@ -85,6 +85,6 @@ const (
 type ServiceError = errors.ServiceError
 
 // NewServiceError creates a new instance of errors.ServiceError with the provided message.
-func NewServiceError(message string) *errors.ServiceError {
-	return errors.NewServiceError(message)
+func NewServiceError(message string, statusCode ...int) *ServiceError {
+	return errors.NewServiceError(message, statusCode...)
 }

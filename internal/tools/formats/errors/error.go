@@ -16,7 +16,7 @@ func (e *ServiceError) Error() string {
 }
 
 // GetError returns a map representing the error status code and message.
-func (e *ServiceError) GetError() map[string]interface{} {
+func (e *ServiceError) GetError() map[string]any {
 	return map[string]any{
 		"message":    e.Message,
 		"statusCode": e.StatusCode,
