@@ -1,4 +1,4 @@
-package gossiper
+package types
 
 // FilterPaginationLengthEnum defines pagination length options.
 type FilterPaginationLengthEnum int
