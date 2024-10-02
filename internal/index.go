@@ -10,6 +10,7 @@ import (
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/errors"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/filter"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/pagination"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/panics"
 	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 )
 
@@ -123,4 +124,24 @@ type ServiceError = errors.ServiceError
 // It accepts a message and an optional status code, facilitating structured error handling.
 func NewServiceError(message string, statusCode ...int) *ServiceError {
 	return errors.NewServiceError(message, statusCode...)
+}
+
+// DontPanic is a wrapper for panics.DontPanic.
+// It allows the application to recover from panics in the calling context.
+func DontPanic() {
+	panics.DontPanic()
+}
+
+// Safely executes a function with panic recovery.
+// It returns any errors that occur during execution, including panics.
+//
+// Parameters:
+//
+//	fn - A function to be executed safely.
+//
+// Returns:
+//
+//	An error if a panic occurred; otherwise, nil.
+func Safely(fn func()) (err error) {
+	return panics.Safely(fn)
 }

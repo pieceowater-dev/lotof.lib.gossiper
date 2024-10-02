@@ -123,6 +123,26 @@ func ToPaginated[T any](items []T, count int) PaginatedEntity[T] {
 	return PaginatedEntity[T]{internal.ToPaginated[T](items, count)}
 }
 
+// DontPanic is a wrapper for internal.DontPanic.
+// It allows the application to recover from panics in the calling context.
+func DontPanic() {
+	internal.DontPanic()
+}
+
+// Safely executes a function with panic recovery.
+// It returns any errors that occur during execution, including panics.
+//
+// Parameters:
+//
+//	fn - A function to be executed safely.
+//
+// Returns:
+//
+//	An error if a panic occurred; otherwise, nil.
+func Safely(fn func()) (err error) {
+	return internal.Safely(fn)
+}
+
 /* BOOTSTRAP */
 
 // Bootstrap is an alias for the internal.Bootstrap.
