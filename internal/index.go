@@ -13,52 +13,76 @@ import (
 	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 )
 
-// Env is an alias for the env.Env type, which manages environment configurations.
+/* ENVIRONMENT */
+
+// Env is an alias for the env.Env type.
+// Handles environment configurations and is used to manage app-specific environment settings.
 type Env = env.Env
 
-// EnvVars is a pointer to the env.EnvVars structure that holds environment variables.
+// EnvVars is a pointer to env.EnvVars, holding application environment variables globally.
 var EnvVars = &env.EnvVars
 
-// AMQP is an alias for the infra.AMQP type, providing methods for AMQP messaging.
+/* NETWORK */
+
+// AMQP is an alias for the infra.AMQP type.
+// Handles AMQP messaging operations, especially for RabbitMQ, providing key functions for producers and consumers.
 type AMQP = infra.AMQP
 
-// Config is an alias for the conf.Config type, which holds application configuration settings.
+/* CONFIGURATION */
+
+// Config is an alias for the conf.Config type.
+// Manages global application configuration, including RabbitMQ and database configurations.
 type Config = conf.Config
 
-// EnvConfig is an alias for the conf.EnvConfig type, containing environment-specific configurations.
+// EnvConfig is an alias for the conf.EnvConfig type.
+// Used to define and validate the required environment variables for the application.
 type EnvConfig = conf.EnvConfig
 
-// QueueConfig is an alias for the conf.QueueConfig type, representing queue-related configurations.
+// QueueConfig is an alias for the conf.QueueConfig type.
+// Specifies configurations for RabbitMQ queues, such as durability, exclusivity, and other settings.
 type QueueConfig = conf.QueueConfig
 
-// AMQPConsumerConfig is an alias for the conf.AMQPConsumerConfig type, holding configurations for AMQP consumers.
+// AMQPConsumerConfig is an alias for the conf.AMQPConsumerConfig type.
+// Contains settings specific to AMQP consumers like queue names and consumer tags.
 type AMQPConsumerConfig = conf.AMQPConsumerConfig
 
-// AMQPConsumeConfig is an alias for the conf.AMQPConsumeConfig type, providing configurations for AMQP consumption.
+// AMQPConsumeConfig is an alias for the conf.AMQPConsumeConfig type.
+// Manages configurations for message consumption (e.g., auto-acknowledge, exclusivity, etc.).
 type AMQPConsumeConfig = conf.AMQPConsumeConfig
 
-// Tools is an alias for the tools.Tools type, providing utility functions for various operations.
+// DBPGConfig is an alias for the PostgreSQL database configuration.
+type DBPGConfig = conf.DBPGConfig
+
+// DatabaseConfig represents the overall database configuration.
+type DatabaseConfig = conf.DatabaseConfig
+
+/* TOOLS */
+
+// Tools is an alias for tools.Tools.
+// A set of helper functions used throughout the system, such as logging and data validation.
 type Tools = tools.Tools
 
-// Bootstrap is an alias for the boot.Bootstrap type, which handles application initialization processes.
+/* BOOTSTRAP */
+
+// Bootstrap is an alias for boot.Bootstrap.
+// Handles the application's initialization and setup processes, especially at startup.
 type Bootstrap = boot.Bootstrap
 
-// ToPaginated converts a slice of items and their count into a PaginatedEntity.
+/* PAGINATION */
+
+// ToPaginated converts a list of items and a total count into a paginated response.
+// This function simplifies the creation of paginated responses for APIs.
 func ToPaginated[T any](items []T, count int) PaginatedEntity[T] {
 	return PaginatedEntity[T]{pagination.ToPaginated(items, count)}
 }
 
-// PaginatedEntity is a wrapper around pagination.PaginatedEntity for easier usage in Gossiper.
+// PaginatedEntity wraps the pagination.PaginatedEntity structure, simplifying its use.
 type PaginatedEntity[T any] struct {
 	pagination.PaginatedEntity[T]
 }
 
-// NewDefaultFilter creates a new types.DefaultFilter instance using the filter package.
-func NewDefaultFilter[T any]() t.DefaultFilter[T] {
-	return filter.NewDefaultFilter[T]()
-}
-
-// Predefined constants for pagination page lengths, allowing for easy configuration.
+// Predefined constants for common pagination page lengths.
+// These values make it easy to implement paginated APIs with standard limits.
 const (
 	TEN          = filter.TEN
 	FIFTEEN      = filter.FIFTEEN
@@ -81,10 +105,22 @@ const (
 	ONE_HUNDRED  = filter.ONE_HUNDRED
 )
 
-// ServiceError is an alias for the errors.ServiceError type, representing application-specific errors.
+/* FILTERING */
+
+// NewDefaultFilter creates a new filter for a given data type.
+// This function wraps the filter.NewDefaultFilter method, making it easier to apply filtering logic.
+func NewDefaultFilter[T any]() t.DefaultFilter[T] {
+	return filter.NewDefaultFilter[T]()
+}
+
+/* ERROR HANDLING */
+
+// ServiceError is an alias for errors.ServiceError.
+// This type is used to represent errors within the application.
 type ServiceError = errors.ServiceError
 
-// NewServiceError creates a new instance of errors.ServiceError with the provided message.
+// NewServiceError creates a new ServiceError instance.
+// It accepts a message and an optional status code, facilitating structured error handling.
 func NewServiceError(message string, statusCode ...int) *ServiceError {
 	return errors.NewServiceError(message, statusCode...)
 }

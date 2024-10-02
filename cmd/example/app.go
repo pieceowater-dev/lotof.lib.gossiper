@@ -16,34 +16,49 @@ func HandleMessage(msg gossiper.AMQMessage) any {
 }
 
 func main() {
-	// Define the gossiper configuration
+	// Define the Gossiper configuration for RabbitMQ and PostgreSQL
 	conf := gossiper.Config{
 		Env: gossiper.EnvConfig{
-			Required: []string{"RABBITMQ_DSN"}, // Specify required environment variables
+			Required: []string{"RABBITMQ_DSN", "DATABASE_DSN"}, // Specify required environment variables for RabbitMQ and PostgreSQL
 		},
 		AMQPConsumer: gossiper.AMQPConsumerConfig{
-			DSNEnv: "RABBITMQ_DSN", // RabbitMQ DSN pulled from environment variables
+			DSNEnv: "RABBITMQ_DSN", // Environment variable for RabbitMQ DSN
 			Queues: []gossiper.QueueConfig{
 				{
-					Name:    "template_queue", // Queue name
-					Durable: true,             // Persistent queue that survives restarts
+					Name:    "template_queue", // Queue name from which messages will be consumed
+					Durable: true,             // Set queue as persistent (survives RabbitMQ restarts)
 				},
 			},
 			Consume: []gossiper.AMQPConsumeConfig{
 				{
-					Queue:    "template_queue",   // Queue to consume from
-					Consumer: "example_consumer", // Consumer tag
-					AutoAck:  true,               // Automatically acknowledge messages
+					Queue:    "template_queue",   // Queue name to consume from
+					Consumer: "example_consumer", // Unique consumer tag for the connection
+					AutoAck:  true,               // Automatically acknowledge receipt of messages
+				},
+			},
+		},
+		Database: gossiper.DatabaseConfig{
+			PG: gossiper.DBPGConfig{
+				EnvPostgresDBDSN: "DATABASE_DSN", // Environment variable key for PostgreSQL DSN
+				AutoMigrate:      true,           // Enable auto-migration of models
+				Models:           []any{
+					// Your models go here
+					// &yourModel{}, // Example: Define the models that will be auto-migrated
 				},
 			},
 		},
 	}
 
-	// Initialize and start consuming messages
-	// Pass a handler function to process each message
-	gossiper.Setup(
+	// Initialize the Gossiper application and setup RabbitMQ consumers and PostgreSQL connection
+	// Pass a handler function to process each message that is consumed
+	app := gossiper.Bootstrap{}
+	app.Setup(
 		conf,
-		nil,
+		func() any {
+			// Custom startup logic to execute after initialization (if needed)
+			log.Println("Custom Setup here")
+			return nil
+		},
 		func(msg []byte) any {
 			var customMessage gossiper.AMQMessage
 

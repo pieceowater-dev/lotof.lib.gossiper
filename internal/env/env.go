@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
-	tools "github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
 	"log"
 	"os"
 	"strings"
