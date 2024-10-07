@@ -34,15 +34,11 @@ func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandle
 	envInst.Init(cfg.Env.Required)
 
 	// Initialize the database
-	if b.PGDB != nil {
-		b.PGDB = pg.NewPGDB(cfg.Database.PG)
-		b.PGDB.InitDB()
-	}
+	b.PGDB = pg.NewPGDB(cfg.Database.PG)
+	b.PGDB.InitDB()
 
-	if b.ClickHouse != nil {
-		b.ClickHouse = ch.NewClickHouseDB(cfg.Database.ClickHouse)
-		b.ClickHouse.InitDB()
-	}
+	b.ClickHouse = ch.NewClickHouseDB(cfg.Database.ClickHouse)
+	b.ClickHouse.InitDB()
 
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")
