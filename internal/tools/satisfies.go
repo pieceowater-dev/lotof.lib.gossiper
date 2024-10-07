@@ -186,6 +186,17 @@ func setValue(field reflect.Value, value any) error {
 				}
 			}
 		}
+	case reflect.Map:
+		newMap := reflect.MakeMap(field.Type())
+		for k, v := range value.(map[string]any) {
+			key := reflect.ValueOf(k)
+			val := reflect.New(field.Type().Elem()).Elem()
+			if err := setValue(val, v); err != nil {
+				return err
+			}
+			newMap.SetMapIndex(key, val)
+		}
+		field.Set(newMap)
 	case reflect.Ptr:
 		return setValueForPointerField(field, value)
 	default:
