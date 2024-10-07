@@ -3,6 +3,7 @@ package amqp
 import (
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/panics"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"strings"
@@ -16,6 +17,7 @@ type AMQP struct {
 // SetupAMQPConsumers initializes and starts RabbitMQ consumers based on the configuration in AMQP.
 // It processes incoming messages and uses the provided messageHandler to handle them.
 func (n *AMQP) SetupAMQPConsumers(messageHandler func([]byte) any) {
+	defer panics.DontPanic()
 	if messageHandler == nil {
 		messageHandler = DefaultHandleMessage
 	}

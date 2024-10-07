@@ -51,8 +51,11 @@ type AMQPConsumerConfig = conf.AMQPConsumerConfig
 // Manages configurations for message consumption (e.g., auto-acknowledge, exclusivity, etc.).
 type AMQPConsumeConfig = conf.AMQPConsumeConfig
 
-// DBPGConfig is an alias for the PostgreSQL database configuration.
+// DBPGConfig is an alias for the conf.DBPGConfig database configuration.
 type DBPGConfig = conf.DBPGConfig
+
+// DBClickHouseConfig is an alias for the conf.DBClickHouseConfig database configuration.
+type DBClickHouseConfig = conf.DBClickHouseConfig
 
 // DatabaseConfig represents the overall database configuration.
 type DatabaseConfig = conf.DatabaseConfig

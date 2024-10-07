@@ -12,7 +12,8 @@ type Config struct {
 
 // DatabaseConfig defines the structure for database-related configurations.
 type DatabaseConfig struct {
-	PG DBPGConfig // PostgreSQL-specific configuration
+	PG         DBPGConfig         // PG-specific configuration
+	ClickHouse DBClickHouseConfig // ClickHouse-specific configuration
 }
 
 // DBPGConfig holds PostgreSQL-related configuration options.
@@ -20,6 +21,12 @@ type DBPGConfig struct {
 	EnvPostgresDBDSN string // Environment variable for PostgreSQL DSN
 	AutoMigrate      bool   // Whether to automatically run migrations
 	Models           []any  // List of models for auto-migration
+}
+
+type DBClickHouseConfig struct {
+	EnvClickHouseDBDSN string // Environment variable for ClickHouse DSN
+	AutoMigrate        bool   // Whether to automatically run migrations
+	Models             []any  // List of models for auto-migration
 }
 
 // EnvConfig defines the required environment variables needed by the application.

@@ -51,6 +51,10 @@ type AMQPConsumeConfig = internal.AMQPConsumeConfig
 // Defines PostgreSQL database configuration options.
 type DBPGConfig = internal.DBPGConfig
 
+// DBClickHouseConfig is an alias for the internal.DBClickHouseConfig.
+// Defines ClickHouse database configuration options.
+type DBClickHouseConfig = internal.DBClickHouseConfig
+
 // DatabaseConfig is an alias for the internal.DatabaseConfig.
 // Groups database configuration settings (e.g., PostgreSQL settings).
 type DatabaseConfig = internal.DatabaseConfig
