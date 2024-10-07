@@ -51,7 +51,7 @@ func (inst *Tools) setDefaultsAndConvert(dest any) {
 						}
 					}
 				default:
-					panic("unhandled default case")
+					panic("unhandled default case in setDefaultsAndConvert for pointer type")
 				}
 			case reflect.Int:
 				if intValue, err := strconv.Atoi(defaultValue); err == nil {
@@ -76,7 +76,7 @@ func (inst *Tools) setDefaultsAndConvert(dest any) {
 					}
 				}
 			default:
-				panic("unhandled default case")
+				panic("unhandled default case in setDefaultsAndConvert for non-pointer type")
 			}
 		}
 	}
@@ -104,28 +104,20 @@ func (inst *Tools) convertFields(data map[string]any, dest any) error {
 				field.SetString(strVal)
 			}
 		case reflect.Int:
-			if strVal, ok := value.(string); ok {
-				if intValue, err := strconv.Atoi(strVal); err == nil {
-					field.SetInt(int64(intValue))
-				}
+			if intVal, ok := value.(float64); ok { // JSON numbers are float64
+				field.SetInt(int64(intVal))
 			}
 		case reflect.Float64:
-			if strVal, ok := value.(string); ok {
-				if floatValue, err := strconv.ParseFloat(strVal, 64); err == nil {
-					field.SetFloat(floatValue)
-				}
+			if floatVal, ok := value.(float64); ok {
+				field.SetFloat(floatVal)
 			}
 		case reflect.Uint:
-			if strVal, ok := value.(string); ok {
-				if uintValue, err := strconv.ParseUint(strVal, 10, 64); err == nil {
-					field.SetUint(uintValue)
-				}
+			if uintVal, ok := value.(float64); ok { // JSON numbers are float64
+				field.SetUint(uint64(uintVal))
 			}
 		case reflect.Bool:
-			if strVal, ok := value.(string); ok {
-				if boolValue, err := strconv.ParseBool(strVal); err == nil {
-					field.SetBool(boolValue)
-				}
+			if boolVal, ok := value.(bool); ok {
+				field.SetBool(boolVal)
 			}
 		case reflect.Struct:
 			if field.Type() == reflect.TypeOf(time.Time{}) {
@@ -136,37 +128,32 @@ func (inst *Tools) convertFields(data map[string]any, dest any) error {
 				}
 			}
 		case reflect.Ptr:
-			switch field.Type().Elem().Kind() {
+			elem := field.Type().Elem()
+			switch elem.Kind() {
 			case reflect.String:
 				if strVal, ok := value.(string); ok {
 					field.Set(reflect.ValueOf(&strVal))
 				}
 			case reflect.Int:
-				if strVal, ok := value.(string); ok {
-					if intValue, err := strconv.Atoi(strVal); err == nil {
-						field.Set(reflect.ValueOf(&intValue))
-					}
+				if intVal, ok := value.(float64); ok { // JSON numbers are float64
+					intValue := int(intVal)
+					field.Set(reflect.ValueOf(&intValue))
 				}
 			case reflect.Float64:
-				if strVal, ok := value.(string); ok {
-					if floatValue, err := strconv.ParseFloat(strVal, 64); err == nil {
-						field.Set(reflect.ValueOf(&floatValue))
-					}
+				if floatVal, ok := value.(float64); ok {
+					field.Set(reflect.ValueOf(&floatVal))
 				}
 			case reflect.Uint:
-				if strVal, ok := value.(string); ok {
-					if uintValue, err := strconv.ParseUint(strVal, 10, 64); err == nil {
-						field.Set(reflect.ValueOf(&uintValue))
-					}
+				if uintVal, ok := value.(float64); ok { // JSON numbers are float64
+					uintValue := uint(uintVal)
+					field.Set(reflect.ValueOf(&uintValue))
 				}
 			case reflect.Bool:
-				if strVal, ok := value.(string); ok {
-					if boolValue, err := strconv.ParseBool(strVal); err == nil {
-						field.Set(reflect.ValueOf(&boolValue))
-					}
+				if boolVal, ok := value.(bool); ok {
+					field.Set(reflect.ValueOf(&boolVal))
 				}
 			case reflect.Struct:
-				if field.Type().Elem() == reflect.TypeOf(time.Time{}) {
+				if elem == reflect.TypeOf(time.Time{}) {
 					if strVal, ok := value.(string); ok {
 						if timeValue, err := time.Parse(time.RFC3339, strVal); err == nil {
 							field.Set(reflect.ValueOf(&timeValue))
@@ -174,10 +161,10 @@ func (inst *Tools) convertFields(data map[string]any, dest any) error {
 					}
 				}
 			default:
-				panic("unhandled default case")
+				panic("unhandled default case in convertFields for pointer type")
 			}
 		default:
-			panic("unhandled default case")
+			panic("unhandled default case in convertFields")
 		}
 	}
 
