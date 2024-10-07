@@ -34,11 +34,15 @@ func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandle
 	envInst.Init(cfg.Env.Required)
 
 	// Initialize the database
-	b.PGDB = pg.NewPGDB(cfg.Database.PG)
-	b.PGDB.InitDB()
+	if cfg.Database.PG.EnvPostgresDBDSN != "" {
+		b.PGDB = pg.NewPGDB(cfg.Database.PG)
+		b.PGDB.InitDB()
+	}
 
-	b.ClickHouse = ch.NewClickHouseDB(cfg.Database.ClickHouse)
-	b.ClickHouse.InitDB()
+	if cfg.Database.ClickHouse.EnvClickHouseDBDSN != "" {
+		b.ClickHouse = ch.NewClickHouseDB(cfg.Database.ClickHouse)
+		b.ClickHouse.InitDB()
+	}
 
 	color.Set(color.FgCyan)
 	log.Println("Setup complete.")
@@ -50,6 +54,8 @@ func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandle
 	}
 
 	// Setup AMQP Consumers
-	net := &infra.AMQP{ConsumerConfig: cfg.AMQPConsumer}
-	net.SetupAMQPConsumers(messageHandler)
+	if len(cfg.AMQPConsumer.Consume) != 0 {
+		net := &infra.AMQP{ConsumerConfig: cfg.AMQPConsumer}
+		net.SetupAMQPConsumers(messageHandler)
+	}
 }
