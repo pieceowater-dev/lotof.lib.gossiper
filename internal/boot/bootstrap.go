@@ -33,7 +33,7 @@ func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandle
 	envInst := &env.Env{}
 	envInst.Init(cfg.Env.Required)
 
-	// Initialize the database
+	// Initialize the databases if it exists
 	if cfg.Database.PG.EnvPostgresDBDSN != "" {
 		b.PGDB = pg.NewPGDB(cfg.Database.PG)
 		b.PGDB.InitDB()
@@ -53,7 +53,7 @@ func (b *Bootstrap) Setup(cfg conf.Config, startupFunc func() any, messageHandle
 		startupFunc()
 	}
 
-	// Setup AMQP Consumers
+	// Setup AMQP Consumers if it exists
 	if len(cfg.AMQPConsumer.Consume) != 0 {
 		net := &infra.AMQP{ConsumerConfig: cfg.AMQPConsumer}
 		net.SetupAMQPConsumers(messageHandler)
