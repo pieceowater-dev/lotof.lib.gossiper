@@ -1,6 +1,9 @@
 package conf
 
-import "github.com/rabbitmq/amqp091-go"
+import (
+	"github.com/rabbitmq/amqp091-go"
+	"gorm.io/gorm"
+)
 
 // Config holds the overall configuration for the gossiper package.
 // It includes both the environment variable management (Env), RabbitMQ consumer configuration (AMQPConsumer), and Database settings (Database).
@@ -21,12 +24,14 @@ type DBPGConfig struct {
 	EnvPostgresDBDSN string // Environment variable for PostgreSQL DSN
 	AutoMigrate      bool   // Whether to automatically run migrations
 	Models           []any  // List of models for auto-migration
+	GORMConfig       *gorm.Config
 }
 
 type DBClickHouseConfig struct {
 	EnvClickHouseDBDSN string // Environment variable for ClickHouse DSN
 	AutoMigrate        bool   // Whether to automatically run migrations
 	Models             []any  // List of models for auto-migration
+	GORMConfig         *gorm.Config
 }
 
 // EnvConfig defines the required environment variables needed by the application.

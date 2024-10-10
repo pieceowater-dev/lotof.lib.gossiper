@@ -15,6 +15,7 @@ type PGDB struct {
 	autoMigrate bool     // Determines if auto-migration should run
 	dsn         string   // DSN environment variable key for database connection
 	models      []any    // Models for database migration
+	gormConf    *gorm.Config
 }
 
 // NewPGDB creates a new instance of PGDB, configuring it with options
@@ -27,10 +28,16 @@ type PGDB struct {
 // Returns:
 //   - A new PGDB instance.
 func NewPGDB(config conf.DBPGConfig) *PGDB {
+	if config.GORMConfig == nil {
+		// Provide a default GORM config if none is passed.
+		config.GORMConfig = &gorm.Config{}
+	}
+
 	return &PGDB{
 		autoMigrate: config.AutoMigrate,
 		dsn:         config.EnvPostgresDBDSN,
 		models:      config.Models,
+		gormConf:    config.GORMConfig,
 	}
 }
 
@@ -42,8 +49,12 @@ func NewPGDB(config conf.DBPGConfig) *PGDB {
 // Logs an error and terminates the program if the database connection or migration fails.
 func (d *PGDB) InitDB() {
 	dsn := d.getPostgresDSN()
+	if dsn == "" {
+		log.Fatalf("DSN not found: %s", d.dsn)
+	}
+
 	var err error
-	d.db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	d.db, err = gorm.Open(postgres.Open(dsn), d.gormConf)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -81,7 +92,11 @@ func (d *PGDB) getPostgresDSN() string {
 	log.Printf("retrieving connection string by " + d.dsn)
 	val, err := envInstance.Get(d.dsn)
 	if err != nil {
+		log.Printf("failed to retrieve DSN: %v", err)
 		return ""
+	}
+	if val == "" {
+		log.Printf("DSN is empty for key: %s", d.dsn)
 	}
 	return val
 }

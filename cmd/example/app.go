@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/pieceowater-dev/lotof.lib.gossiper"
+	"gorm.io/gorm"
 	"log"
 )
 
@@ -14,6 +15,12 @@ func HandleMessage(msg gossiper.AMQMessage) any {
 	log.Printf("Received message: %s", msg.Pattern)
 	return "OK" // Return a response; modify this as needed
 }
+
+//type SomeData struct {
+//	gorm.Model
+//	ID   int             `json:"id"`
+//	Data json.RawMessage `json:"data"`
+//}
 
 func main() {
 	// Define the Gossiper configuration for RabbitMQ and PostgreSQL
@@ -45,6 +52,14 @@ func main() {
 					// Your models go here
 					// &yourModel{}, // Example: Define the models that will be auto-migrated
 				},
+			},
+			ClickHouse: gossiper.DBClickHouseConfig{
+				EnvClickHouseDBDSN: "CLICKHOUSE_DSN",
+				AutoMigrate:        true,
+				Models:             []any{
+					//&SomeData{},
+				},
+				GORMConfig: &gorm.Config{},
 			},
 		},
 	}
