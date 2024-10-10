@@ -59,11 +59,17 @@ func (d *ClickHouseDB) InitDB() {
 	log.Printf("connected to database")
 
 	if d.autoMigrate {
-		err = d.db.AutoMigrate(d.models...)
-		if err != nil {
-			log.Fatalf("failed to auto-migrate: %v", err)
+		for _, model := range d.models {
+			if !d.db.Migrator().HasTable(model) {
+				err = d.db.AutoMigrate(model)
+				if err != nil {
+					log.Fatalf("failed to auto-migrate model %v: %v", model, err)
+				}
+				log.Printf("auto-migrated model: %v", model)
+			} else {
+				log.Printf("Table already exists for model: %v. Skipping migration.", model)
+			}
 		}
-		log.Printf("auto-migrate complete")
 	} else {
 		log.Println("Manual migration mode enabled. Skipping auto-migration.")
 	}
