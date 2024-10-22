@@ -2,6 +2,7 @@ package gossiper
 
 import (
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra/amqp"
 	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
 )
 
@@ -20,6 +21,10 @@ var EnvVars = &internal.EnvVars
 // AMQP is an alias for the internal.AMQP.
 // Provides RabbitMQ or AMQP related functions and configurations.
 type AMQP = internal.AMQP
+
+func NewAMQPClient(queueName string, dsn string) (*amqp.Client, error) {
+	return internal.NewAMQPClient(queueName, dsn)
+}
 
 // AMQMessage is an alias for the internal.DefaultMessage.
 // Represents the structure of messages that are exchanged over AMQP.

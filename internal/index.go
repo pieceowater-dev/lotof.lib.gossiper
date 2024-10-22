@@ -6,6 +6,7 @@ import (
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/conf"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/env"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra/amqp"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/errors"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/tools/formats/filter"
@@ -28,6 +29,10 @@ var EnvVars = &env.EnvVars
 // AMQP is an alias for the infra.AMQP type.
 // Handles AMQP messaging operations, especially for RabbitMQ, providing key functions for producers and consumers.
 type AMQP = infra.AMQP
+
+func NewAMQPClient(queueName string, dsn string) (*amqp.Client, error) {
+	return infra.NewAMQPClient(queueName, dsn)
+}
 
 /* CONFIGURATION */
 
