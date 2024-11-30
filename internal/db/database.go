@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	postgresql "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/db/pg"
+	postgresql "github.com/pieceowater-dev/lotof.lib.gossiper/internal/db/pg"
 	"gorm.io/gorm"
 )
 

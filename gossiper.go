@@ -2,13 +2,12 @@ package gossiper
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/db"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers"
-	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/grpc"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rabbitmq"
-	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rabbitmq"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rest"
-	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rest"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/db"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers"
+	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/grpc"
+	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/rabbitmq"
+	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/rest"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/transport"
 	"google.golang.org/grpc"
 )
 
@@ -42,10 +41,10 @@ type ServerManager = servers.ServerManager
 type GRPCServer = grpcServ.Server
 
 // RESTServer represents a REST server instance.
-type RESTServer = rest.Server
+type RESTServer = restServ.Server
 
 // RMQServer represents a RabbitMQ server instance.
-type RMQServer = rabbitmq.Server
+type RMQServer = rmqServ.Server
 
 // NewServerManager creates a new instance of the server manager.
 // The server manager is responsible for starting and stopping multiple server instances.
@@ -75,4 +74,17 @@ func NewRESTServ(port string, router *gin.Engine, initRoute func(router *gin.Eng
 // Returns an `RMQServer` instance.
 func NewRMQServ() *RMQServer {
 	return rmqServ.New()
+}
+
+type Transport = transport.Transport
+type TransportType = transport.Type
+
+const (
+	GRPC TransportType = transport.GRPC
+)
+
+type TransportFactory = transport.Factory
+
+func NewTransportFactory() *TransportFactory {
+	return transport.NewFactory()
 }

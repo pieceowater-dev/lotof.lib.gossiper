@@ -6,25 +6,27 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Entry point for the example application demonstrating how to use the gossiper package.
 func main() {
-	// Создаём менеджер серверов
+	// Create a new server manager to manage multiple servers.
 	serverManager := gossiper.NewServerManager()
 
-	// Инициализация gRPC сервера
+	// Initialize the gRPC server.
 	grpcInitRoute := func(server *grpc.Server) {
-		// Пример: добавить маршруты
+		// Example: Add gRPC routes here.
 	}
 	serverManager.AddServer(gossiper.NewGRPCServ("50051", grpc.NewServer(), grpcInitRoute))
 
-	// Инициализация REST сервера
+	// Initialize the REST server.
 	restInitRoute := func(router *gin.Engine) {
+		// Define a health check endpoint.
 		router.GET("/health", func(c *gin.Context) {
 			c.JSON(200, gin.H{"status": "ok"})
 		})
 	}
 	serverManager.AddServer(gossiper.NewRESTServ("8080", gin.Default(), restInitRoute))
 
-	// Запуск всех серверов
+	// Start all servers.
 	serverManager.StartAll()
 	defer serverManager.StopAll()
 }
