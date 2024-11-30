@@ -1,4 +1,4 @@
-module github.com/pieceowater-dev/lotof.lib.gossiper
+module github.com/pieceowater-dev/lotof.lib.gossiper/v2
 
 go 1.23.0
 

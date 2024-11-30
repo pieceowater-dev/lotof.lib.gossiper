@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/pieceowater-dev/lotof.lib.gossiper"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 	"google.golang.org/grpc"
 )
 

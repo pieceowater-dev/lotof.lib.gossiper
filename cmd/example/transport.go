@@ -1,7 +1,7 @@
 package main
 
 import (
-	gossiper "github.com/pieceowater-dev/lotof.lib.gossiper"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 )
 
 type SomeService struct {

@@ -2,12 +2,12 @@ package gossiper
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/db"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers"
-	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/grpc"
-	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/rabbitmq"
-	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/servers/rest"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/transport"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
+	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
+	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rabbitmq"
+	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rest"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/transport"
 	"google.golang.org/grpc"
 )
 

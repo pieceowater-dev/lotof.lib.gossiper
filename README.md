@@ -1,179 +1,146 @@
 # Gossiper
 
-`gossiper` is a lightweight Go package designed to simplify working with environment variables, RabbitMQ, and validation tools. It streamlines the process of managing configurations and consuming messages from RabbitMQ dynamically.
+`gossiper` is a modern Go library designed to simplify server management and transport mechanisms for gRPC, REST, and RabbitMQ in distributed systems. The package allows developers to manage servers, routes, and database connections with ease, while supporting a pluggable architecture for extending functionality.
 
 ## Installation
 
 ```bash
-go get github.com/pieceowater-dev/lotof.lib.gossiper
+go get github.com/pieceowater-dev/lotof.lib.gossiper/v2
 ```
 
-## Usage
+Features
 
-Instead of placing the entire configuration inside `main.go`, it's better to separate the configuration into its own file and import it in `main.go`. This helps keep the code organized, especially as the application grows.
+- Centralized server management with ServerManager
+- Support for gRPC and REST servers
+- RabbitMQ server integration
+- Transport factory for creating gRPC-based communication channels
+- Simplified database connection management
+- Modular and extendable design
 
-### Step 1: Create a Config File
+## Usage Examples
 
-Create a file named `config.go` where you can define the configuration for the environment variables and RabbitMQ consumers.
+### Server Management
 
-```go
-package main
+gossiper provides a ServerManager to manage multiple servers, such as gRPC and REST, in one place.
 
-import "github.com/pieceowater-dev/lotof.lib.gossiper"
+### Example: Managing Multiple Servers
 
-func GetConfig() gossiper.Config {
-	return gossiper.Config{
-		Env: gossiper.EnvConfig{
-			Required: []string{"RABBITMQ_DSN"},
-		},
-		AMQPConsumer: gossiper.AMQPConsumerConfig{
-			DSNEnv: "RABBITMQ_DSN",
-			Queues: []gossiper.QueueConfig{
-				{
-					Name:       "template_queue",
-					Durable:    true,
-					AutoDelete: false,
-					Exclusive:  false,
-					NoWait:     false,
-					Args:       nil,
-				},
-			},
-			Consume: []gossiper.AMQPConsumeConfig{
-				{
-					Queue:     "template_queue",
-					Consumer:  "example_consumer",
-					AutoAck:   true,
-					Exclusive: false,
-					NoLocal:   false,
-					NoWait:    false,
-					Args:      nil,
-				},
-			},
-		},
-	}
-}
-```
-
-### Step 2: Import Config into `main.go`
-
-Now, in your `main.go`, import the configuration and use it in the `gossiper.Setup` function.
-
-```go
+```golang
 package main
 
 import (
-	"encoding/json"
-	"github.com/pieceowater-dev/lotof.lib.gossiper"
-	"log"
+	"github.com/gin-gonic/gin"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2"
+	"google.golang.org/grpc"
 )
 
-func HandleMessage(msg gossiper.AMQMessage) any {
-	log.Printf("Received message: %s", msg.Pattern)
-	return "OK"
+func main() {
+	serverManager := gossiper.NewServerManager()
+
+	// Initialize gRPC Server
+	grpcInitRoute := func(server *grpc.Server) {
+		// Define gRPC services here
+	}
+	serverManager.AddServer(gossiper.NewGRPCServ("50051", grpc.NewServer(), grpcInitRoute))
+
+	// Initialize REST Server
+	restInitRoute := func(router *gin.Engine) {
+		router.GET("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+	}
+	serverManager.AddServer(gossiper.NewRESTServ("8080", gin.Default(), restInitRoute))
+
+	// Start all servers
+	serverManager.StartAll()
+	defer serverManager.StopAll()
 }
+```
+
+### Transport Factory
+
+The TransportFactory simplifies the creation of transport mechanisms for communication, such as gRPC.
+
+Example: Creating a gRPC Transport
+```golang
+package main
+
+import (
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2"
+)
 
 func main() {
-	// Import the configuration from config.go
-	conf := GetConfig()
+	factory := gossiper.NewTransportFactory()
+	grpcTransport := factory.CreateTransport(
+		gossiper.GRPC,
+		"localhost:50051",
+	)
 
-	// Initialize and start the consumers
-	gossiper.Setup(conf, nil, func(msg []byte) any {
-		var customMessage gossiper.AMQMessage
-		err := json.Unmarshal(msg, &customMessage)
-		if err != nil {
-			log.Println("Failed to unmarshal custom message:", err)
-			return nil
-		}
-		return HandleMessage(customMessage)
-	})
-
-	log.Println("Application started")
+	// Use grpcTransport to send requests or create clients
+	_ = grpcTransport
 }
 ```
 
-## Configuration
+## Core API
 
-### `gossiper.Config`
-This struct is the core configuration and includes:
+### Server Management
 
-- **EnvConfig**: Manages environment variables.
-- **AMQPConsumerConfig**: Configures RabbitMQ consumers.
+#### ServerManager
 
-### `EnvConfig`
+Manages the lifecycle of multiple servers (start, stop).
+- NewServerManager
+Creates a new server manager instance.
+- AddServer
+Adds a new server (e.g., gRPC, REST) to the manager.
+- StartAll / StopAll
+Starts or stops all servers managed by the instance.
 
-```go
-type EnvConfig struct {
-    Required []string
+#### Servers
+
+gRPC Server
+
+- NewGRPCServ
+Creates a new gRPC server instance.
+
+REST Server
+
+- NewRESTServ
+Creates a new REST server using the Gin framework.
+
+RabbitMQ Server
+
+- NewRMQServ
+Creates a new RabbitMQ server instance.
+
+#### Transport
+
+TransportFactory
+
+The TransportFactory provides a unified way to create communication transports.
+- Supported Transports:
+- GRPC: For gRPC communication.
+
+### Example:
+```golang
+factory := gossiper.NewTransportFactory()
+transport := factory.CreateTransport(gossiper.GRPC, "localhost:50051")
+```
+
+#### Database
+
+#### NewDB
+
+Initializes a database connection.
+- Supported Database Types:
+- PostgresDB: For PostgreSQL connections.
+
+#### Example:
+```golang
+db, err := gossiper.NewDB(gossiper.PostgresDB, "your-dsn", true)
+if err != nil {
+    panic(err)
 }
 ```
-
-- **Required** (`[]string`): Specifies a list of environment variables that are mandatory for the application to run. If any variable is missing, the application will return an error.
-
-### `AMQPConsumerConfig`
-
-```go
-type AMQPConsumerConfig struct {
-    DSNEnv  string
-    Queues  []QueueConfig
-    Consume []AMQPConsumeConfig
-}
-```
-
-- **DSNEnv** (`string`): The environment variable name that stores the RabbitMQ DSN (Data Source Name). This value is retrieved from the environment.
-- **Queues** (`[]QueueConfig`): A list of queues that should be declared in RabbitMQ. Each queue has its own configuration.
-- **Consume** (`[]AMQPConsumeConfig`): Defines the consumers and how they should consume messages from RabbitMQ.
-
-### `QueueConfig`
-
-```go
-type QueueConfig struct {
-    Name       string
-    Durable    bool
-    AutoDelete bool
-    Exclusive  bool
-    NoWait     bool
-    Args       amqp.Table
-}
-```
-
-- **Name** (`string`): The name of the RabbitMQ queue.
-- **Durable** (`bool`): If `true`, the queue will survive broker restarts.
-- **AutoDelete** (`bool`): If `true`, the queue will be automatically deleted when the last consumer disconnects.
-- **Exclusive** (`bool`): If `true`, the queue can only be used by the current connection and will be deleted when the connection is closed.
-- **NoWait** (`bool`): If `true`, the server will not respond to the queue declaration. The client won’t wait for confirmation that the queue was created.
-- **Args** (`amqp.Table`): Custom arguments to pass when creating the queue. Usually `nil`.
-
-### `AMQPConsumeConfig`
-
-```go
-type AMQPConsumeConfig struct {
-    Queue     string
-    Consumer  string
-    AutoAck   bool
-    Exclusive bool
-    NoLocal   bool
-    NoWait    bool
-    Args      amqp.Table
-}
-```
-
-- **Queue** (`string`): The name of the queue to consume from.
-- **Consumer** (`string`): The consumer tag to identify this consumer.
-- **AutoAck** (`bool`): If `true`, messages will be automatically acknowledged after being delivered. Otherwise, manual acknowledgment is required.
-- **Exclusive** (`bool`): If `true`, the queue can only be consumed by this consumer.
-- **NoLocal** (`bool`): If `true`, messages published on this connection are not delivered to this consumer (rarely used).
-- **NoWait** (`bool`): If `true`, the server will not send a response to the consumer setup request.
-- **Args** (`amqp.Table`): Additional arguments for consumer setup.
-
-### Example `.env` file
-
-```
-RABBITMQ_DSN=amqp://guest:guest@localhost:5672/
-```
-
-### Logging
-
-`gossiper` logs every message received and any errors encountered during message unmarshalling.
 
 ### Contributing
 
