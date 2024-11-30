@@ -1,166 +1,78 @@
 package gossiper
 
 import (
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/infra/amqp"
-	t "github.com/pieceowater-dev/lotof.lib.gossiper/types"
+	"github.com/gin-gonic/gin"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/db"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers"
+	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/grpc"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rabbitmq"
+	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rabbitmq"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rest"
+	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/internal/core/servers/rest"
+	"google.golang.org/grpc"
 )
 
-/* ENVIRONMENT */
+// Database aliases the internal database abstraction.
+type Database = db.Database
 
-// Env is an alias for the internal.Env.
-// Provides access to environment-related utilities.
-type Env = internal.Env
+// DBFactory aliases the database factory for creating new database instances.
+type DBFactory = db.DatabaseFactory
 
-// EnvVars is a pointer alias for the internal.EnvVars.
-// Used to manage environment variables globally.
-var EnvVars = &internal.EnvVars
+// DatabaseType represents the type of database being used.
+type DatabaseType = db.DatabaseType
 
-/* NETWORK */
-
-// AMQP is an alias for the internal.AMQP.
-// Provides RabbitMQ or AMQP related functions and configurations.
-type AMQP = internal.AMQP
-
-func NewAMQPClient(queueName string, dsn string) (*amqp.Client, error) {
-	return internal.NewAMQPClient(queueName, dsn)
-}
-
-// AMQMessage is an alias for the internal.DefaultMessage.
-// Represents the structure of messages that are exchanged over AMQP.
-type AMQMessage = t.DefaultMessage
-
-/* CONFIG */
-
-// Config is an alias for the internal.Config.
-// Represents the general application configuration structure.
-type Config = internal.Config
-
-// EnvConfig is an alias for the internal.EnvConfig.
-// Contains settings related to environment variables.
-type EnvConfig = internal.EnvConfig
-
-// QueueConfig is an alias for the internal.QueueConfig.
-// Defines configuration for RabbitMQ queues.
-type QueueConfig = internal.QueueConfig
-
-// AMQPConsumerConfig is an alias for the internal.AMQPConsumerConfig.
-// Holds the RabbitMQ consumer-specific configuration settings.
-type AMQPConsumerConfig = internal.AMQPConsumerConfig
-
-// AMQPConsumeConfig is an alias for the internal.AMQPConsumeConfig.
-// Describes how messages are consumed from RabbitMQ queues.
-type AMQPConsumeConfig = internal.AMQPConsumeConfig
-
-// DBPGConfig is an alias for the internal.DBPGConfig.
-// Defines PostgreSQL database configuration options.
-type DBPGConfig = internal.DBPGConfig
-
-// DBClickHouseConfig is an alias for the internal.DBClickHouseConfig.
-// Defines ClickHouse database configuration options.
-type DBClickHouseConfig = internal.DBClickHouseConfig
-
-// DatabaseConfig is an alias for the internal.DatabaseConfig.
-// Groups database configuration settings (e.g., PostgreSQL settings).
-type DatabaseConfig = internal.DatabaseConfig
-
-/* TOOLS */
-
-// Tools is an alias for the tools.Tools from the internal package.
-// Provides various utility functions for the application.
-type Tools = internal.Tools
-
-// Satisfies checks if the provided data conforms to the destination structure.
-// Useful for verifying if a structure meets the required interface or type.
-func Satisfies(data any, dest any) error {
-	inst := Tools{}
-	return inst.Satisfies(data, dest)
-}
-
-// LogAction logs an action with the provided data.
-// A simple wrapper for logging actions within the application.
-func LogAction(action string, data any) {
-	inst := Tools{}
-	inst.LogAction(action, data)
-}
-
-// NewServiceError creates a new instance of internal.ServiceError.
-// Used to generate a service-related error with an optional status code.
-func NewServiceError(message string, statusCode ...int) *internal.ServiceError {
-	return internal.NewServiceError(message, statusCode...)
-}
-
-// Enum with aliases for predefined pagination page length.
-// These constants define common pagination limits (e.g., 10, 20, 50 items per page).
+// PostgresDB One of Supported database types.
 const (
-	TEN          = internal.TEN
-	FIFTEEN      = internal.FIFTEEN
-	TWENTY       = internal.TWENTY
-	TWENTY_FIVE  = internal.TWENTY_FIVE
-	THIRTY       = internal.THIRTY
-	THIRTY_FIVE  = internal.THIRTY_FIVE
-	FORTY        = internal.FORTY
-	FORTY_FIVE   = internal.FORTY_FIVE
-	FIFTY        = internal.FIFTY
-	FIFTY_FIVE   = internal.FIFTY_FIVE
-	SIXTY        = internal.SIXTY
-	SIXTY_FIVE   = internal.SIXTY_FIVE
-	SEVENTY      = internal.SEVENTY
-	SEVENTY_FIVE = internal.SEVENTY_FIVE
-	EIGHTY       = internal.EIGHTY
-	EIGHTY_FIVE  = internal.EIGHTY_FIVE
-	NINETY       = internal.NINETY
-	NINETY_FIVE  = internal.NINETY_FIVE
-	ONE_HUNDRED  = internal.ONE_HUNDRED
+	PostgresDB DatabaseType = db.PostgresDB
 )
 
-// PaginatedEntity wraps internal.PaginatedEntity for convenience.
-// A generic structure for paginated results, supporting any type `T`.
-type PaginatedEntity[T any] struct {
-	internal.PaginatedEntity[T]
+// NewDB initializes a new database connection.
+// - dbType: The type of database (e.g., PostgresDB).
+// - dsn: The data source name for connecting to the database.
+// - enableLogs: Whether to enable logging for the database.
+// Returns a `Database` interface or an error if initialization fails.
+func NewDB(dbType DatabaseType, dsn string, enableLogs bool) (Database, error) {
+	return db.New(dsn, enableLogs).Create(dbType)
 }
 
-// NewFilter creates a new types.DefaultFilter instance.
-// This function initializes a default filter for any data type `T`.
-func NewFilter[T any]() t.DefaultFilter[T] {
-	return internal.NewDefaultFilter[T]()
+// ServerManager aliases the server manager for managing multiple servers.
+type ServerManager = servers.ServerManager
+
+// GRPCServer represents a gRPC server instance.
+type GRPCServer = grpcServ.Server
+
+// RESTServer represents a REST server instance.
+type RESTServer = rest.Server
+
+// RMQServer represents a RabbitMQ server instance.
+type RMQServer = rabbitmq.Server
+
+// NewServerManager creates a new instance of the server manager.
+// The server manager is responsible for starting and stopping multiple server instances.
+func NewServerManager() *ServerManager {
+	return servers.NewServerManager()
 }
 
-// ToPaginated converts items and count to a PaginatedEntity.
-// Wraps a list of items and a count into a paginated entity for easier response formatting.
-func ToPaginated[T any](items []T, count int) PaginatedEntity[T] {
-	return PaginatedEntity[T]{internal.ToPaginated[T](items, count)}
+// NewGRPCServ creates a new gRPC server.
+// - port: The port number for the server.
+// - server: The gRPC server instance.
+// - initRoute: A function to initialize the server's routes.
+// Returns a `GRPCServer` instance.
+func NewGRPCServ(port string, server *grpc.Server, initRoute func(server *grpc.Server)) *GRPCServer {
+	return grpcServ.New(port, server, initRoute)
 }
 
-// DontPanic is a wrapper for internal.DontPanic.
-// It allows the application to recover from panics in the calling context.
-func DontPanic() {
-	internal.DontPanic()
+// NewRESTServ creates a new REST server.
+// - port: The port number for the server.
+// - router: The Gin router instance.
+// - initRoute: A function to initialize the server's routes.
+// Returns a `RESTServer` instance.
+func NewRESTServ(port string, router *gin.Engine, initRoute func(router *gin.Engine)) *RESTServer {
+	return restServ.New(port, router, initRoute)
 }
 
-// Safely executes a function with panic recovery.
-// It returns any errors that occur during execution, including panics.
-//
-// Parameters:
-//
-//	fn - A function to be executed safely.
-//
-// Returns:
-//
-//	An error if a panic occurred; otherwise, nil.
-func Safely(fn func()) (err error) {
-	return internal.Safely(fn)
-}
-
-/* BOOTSTRAP */
-
-// Bootstrap is an alias for the internal.Bootstrap.
-// This is used to set up the core of the application.
-type Bootstrap = internal.Bootstrap
-
-// Setup initializes the bootstrap with the given configuration and handlers.
-// This is where the application is configured, including startup logic and message handling.
-func Setup(cfg internal.Config, startupFunc func() any, messageHandler func([]byte) any) {
-	b := Bootstrap{}
-	b.Setup(cfg, startupFunc, messageHandler)
+// NewRMQServ creates a new RabbitMQ server.
+// Returns an `RMQServer` instance.
+func NewRMQServ() *RMQServer {
+	return rmqServ.New()
 }
