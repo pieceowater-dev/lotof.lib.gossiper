@@ -12,11 +12,11 @@ import (
 )
 
 type Postgres struct {
-	DB *gorm.DB
+	db *gorm.DB
 }
 
 // NewPostgres initializes the Postgres instance with a configurable logger
-func NewPostgres(dsn string, enableLogs bool) *Postgres {
+func NewPostgres(dsn string, enableLogs bool, autoMigrateEntities []any) *Postgres {
 	var newLogger logger.Interface
 	if enableLogs {
 		newLogger = logger.New(
@@ -41,7 +41,7 @@ func NewPostgres(dsn string, enableLogs bool) *Postgres {
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatalf("Failed to get DB instance: %v", err)
+		log.Fatalf("Failed to get db instance: %v", err)
 	}
 	if err := sqlDB.Ping(); err != nil {
 		log.Fatalf("Failed to ping PostgreSQL: %v", err)
@@ -50,21 +50,25 @@ func NewPostgres(dsn string, enableLogs bool) *Postgres {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
-	//if err := db.AutoMigrate(&ent.Todo{}); err != nil {
-	//	log.Fatalf("Failed to migrate database: %v", err)
-	//}
+	if autoMigrateEntities != nil {
+		for _, entity := range autoMigrateEntities {
+			if err := db.AutoMigrate(entity); err != nil {
+				log.Fatalf("failed to auto-migrate entity: %v", err)
+			}
+		}
+	}
 
-	return &Postgres{DB: db}
+	return &Postgres{db: db}
 }
 
 // GetDB returns the GORM database instance
 func (p *Postgres) GetDB() *gorm.DB {
-	return p.DB
+	return p.db
 }
 
 // WithTransaction executes a function within a transaction
 func (p *Postgres) WithTransaction(fn func(tx *gorm.DB) error) error {
-	tx := p.DB.Begin()
+	tx := p.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -89,7 +93,7 @@ func (p *Postgres) SeedData(data []any) error {
 			return fmt.Errorf("invalid data type, expected a pointer to a struct, got %T", item)
 		}
 
-		if err := p.DB.FirstOrCreate(item).Error; err != nil {
+		if err := p.db.FirstOrCreate(item).Error; err != nil {
 			return fmt.Errorf("failed to seed data: %w", err)
 		}
 	}

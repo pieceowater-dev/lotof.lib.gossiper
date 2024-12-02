@@ -22,15 +22,20 @@ type DatabaseType int
 
 // DatabaseFactory is a factory for creating database instances
 type DatabaseFactory struct {
-	DSN        string
-	EnableLogs bool
+	dsn               string
+	enableLogs        bool
+	autoMigrateModels []any
 }
 
 // New initializes a new DatabaseFactory
-func New(dsn string, enableLogs bool) *DatabaseFactory {
+func New(dsn string, enableLogs bool, autoMigrateModels []any) *DatabaseFactory {
+	if autoMigrateModels == nil {
+		autoMigrateModels = []any{}
+	}
 	return &DatabaseFactory{
-		DSN:        dsn,
-		EnableLogs: enableLogs,
+		dsn:               dsn,
+		enableLogs:        enableLogs,
+		autoMigrateModels: autoMigrateModels,
 	}
 }
 
@@ -38,7 +43,7 @@ func New(dsn string, enableLogs bool) *DatabaseFactory {
 func (f *DatabaseFactory) Create(dbType DatabaseType) (Database, error) {
 	switch dbType {
 	case PostgresDB:
-		return postgresql.NewPostgres(f.DSN, f.EnableLogs), nil
+		return postgresql.NewPostgres(f.dsn, f.enableLogs, f.autoMigrateModels), nil
 	// Add more cases for other database types
 	default:
 		return nil, fmt.Errorf("unsupported database type: %v", dbType)
