@@ -3,6 +3,7 @@ package gossiper
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
 	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rabbitmq"
@@ -87,4 +88,65 @@ type TransportFactory = transport.Factory
 
 func NewTransportFactory() *TransportFactory {
 	return transport.NewFactory()
+}
+
+// Filter [T] is an alias for generic.Filter[T], providing a filter structure.
+type Filter[T any] struct {
+	generic.Filter[T]
+}
+
+// NewFilter creates a new Filter instance with the provided search term, sorting, and pagination.
+func NewFilter[T any](search string, sort Sort[T], pagination Pagination) Filter[T] {
+	return Filter[T]{
+		Filter: generic.NewFilter(search, sort.Sort, pagination.Pagination),
+	}
+}
+
+// PaginatedResult [T] is an alias for generic.PaginatedResult[T], representing paginated results.
+type PaginatedResult[T any] struct {
+	generic.PaginatedResult[T]
+}
+
+// NewPaginatedResult creates a new PaginatedResult with the given rows and total count.
+func NewPaginatedResult[T any](rows []T, count int) PaginatedResult[T] {
+	return PaginatedResult[T]{
+		PaginatedResult: generic.NewPaginatedResult(rows, count),
+	}
+}
+
+// Pagination is an alias for generic.Pagination, encapsulating pagination data.
+type Pagination struct {
+	generic.Pagination
+}
+
+// NewPagination creates a new Pagination instance with the specified page and length.
+func NewPagination(page, length int) Pagination {
+	return Pagination{
+		Pagination: generic.NewPagination(page, length),
+	}
+}
+
+// Sort [T] is an alias for generic.Sort[T], representing sorting data.
+type Sort[T any] struct {
+	generic.Sort[T]
+}
+
+// NewSort creates a new Sort instance for a given field and direction.
+func NewSort[T any](field string, direction SortDirection) Sort[T] {
+	return Sort[T]{
+		Sort: generic.NewSort[T](field, direction),
+	}
+}
+
+// SortDirection is an alias for generic.SortDirection, representing sort directions (e.g., ascending or descending).
+type SortDirection = generic.SortDirection
+
+// IsFieldValid checks if a field is valid in a given model.
+func IsFieldValid(model any, field string) bool {
+	return generic.IsFieldValid(model, field)
+}
+
+// ToSnakeCase converts a string to snake_case format.
+func ToSnakeCase(s string) string {
+	return generic.ToSnakeCase(s)
 }
