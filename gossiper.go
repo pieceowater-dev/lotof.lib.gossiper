@@ -30,8 +30,8 @@ const (
 // - dsn: The data source name for connecting to the database.
 // - enableLogs: Whether to enable logging for the database.
 // Returns a `Database` interface or an error if initialization fails.
-func NewDB(dbType DatabaseType, dsn string, enableLogs bool) (Database, error) {
-	return db.New(dsn, enableLogs).Create(dbType)
+func NewDB(dbType DatabaseType, dsn string, enableLogs bool, autoMigrateModels []any) (Database, error) {
+	return db.New(dsn, enableLogs, autoMigrateModels).Create(dbType)
 }
 
 // ServerManager aliases the server manager for managing multiple servers.
