@@ -2,12 +2,14 @@ package db
 
 import (
 	"fmt"
+	clickhouse "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db/ch"
 	postgresql "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db/pg"
 	"gorm.io/gorm"
 )
 
 const (
 	PostgresDB DatabaseType = iota
+	ClickHouseDB
 )
 
 // Database defines the common methods for database operations
@@ -44,7 +46,8 @@ func (f *DatabaseFactory) Create(dbType DatabaseType) (Database, error) {
 	switch dbType {
 	case PostgresDB:
 		return postgresql.NewPostgres(f.dsn, f.enableLogs, f.autoMigrateModels), nil
-	// Add more cases for other database types
+	case ClickHouseDB:
+		return clickhouse.NewClickhouse(f.dsn, f.enableLogs, f.autoMigrateModels), nil
 	default:
 		return nil, fmt.Errorf("unsupported database type: %v", dbType)
 	}
