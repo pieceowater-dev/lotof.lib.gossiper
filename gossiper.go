@@ -23,7 +23,8 @@ type DatabaseType = db.DatabaseType
 
 // PostgresDB One of Supported database types.
 const (
-	PostgresDB DatabaseType = db.PostgresDB
+	PostgresDB   DatabaseType = db.PostgresDB
+	ClickHouseDB              = db.ClickHouseDB
 )
 
 // NewDB initializes a new database connection.
