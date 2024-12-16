@@ -69,17 +69,7 @@ func (p *Clickhouse) GetDB() *gorm.DB {
 
 // WithTransaction executes a function within a transaction
 func (p *Clickhouse) WithTransaction(fn func(tx *gorm.DB) error) error {
-	tx := p.db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-
-	if err := fn(tx); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
+	return fmt.Errorf("transactions are not supported in ClickHouse")
 }
 
 // SeedData populates the database with dynamic initial data
@@ -99,4 +89,11 @@ func (p *Clickhouse) SeedData(data []any) error {
 		}
 	}
 	return nil
+}
+
+func (p *Clickhouse) SwitchSchema(schema string) *gorm.DB {
+	if err := p.db.Exec(fmt.Sprintf("USE %s", schema)).Error; err != nil {
+		panic(fmt.Errorf("failed to switch schema: %w", err))
+	}
+	return p.db
 }

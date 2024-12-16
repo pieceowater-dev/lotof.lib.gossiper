@@ -99,3 +99,10 @@ func (p *Postgres) SeedData(data []any) error {
 	}
 	return nil
 }
+
+func (p *Postgres) SwitchSchema(schema string) *gorm.DB {
+	if err := p.db.Exec(fmt.Sprintf("SET search_path TO %s", schema)).Error; err != nil {
+		panic(fmt.Errorf("failed to switch schema: %w", err))
+	}
+	return p.db
+}

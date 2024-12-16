@@ -17,6 +17,7 @@ type Database interface {
 	GetDB() *gorm.DB
 	WithTransaction(func(tx *gorm.DB) error) error
 	SeedData(data []any) error
+	SwitchSchema(schema string) *gorm.DB
 }
 
 // DatabaseType defines the type of databases supported
