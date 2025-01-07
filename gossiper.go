@@ -8,8 +8,10 @@ import (
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
 	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rabbitmq"
 	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rest"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/tenant"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/transport"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
 
 // Database aliases the internal database abstraction.
@@ -150,4 +152,18 @@ func IsFieldValid(model any, field string) bool {
 // ToSnakeCase converts a string to snake_case format.
 func ToSnakeCase(s string) string {
 	return generic.ToSnakeCase(s)
+}
+
+type ITenantManager = tenant.ITenantManager
+type TenantManager = tenant.Manager
+type EncryptedTenant = tenant.EncryptedTenant
+
+//type RawTenant struct {
+//	database string // Schema name / namespace name
+//	username string
+//	password string
+//}
+
+func NewTenantManager(db *gorm.DB, secret string) (*TenantManager, error) {
+	return tenant.NewTenantManager(db, secret)
 }
