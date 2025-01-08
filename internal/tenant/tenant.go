@@ -109,7 +109,15 @@ func (tm *Manager) seedSingleTenant(t tenant) error {
 	}
 
 	// Create user with password
-	createUserSQL := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", t.username, t.password)
+	createUserSQL := fmt.Sprintf(
+		`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '%s') THEN
+						CREATE USER %s WITH PASSWORD '%s';
+					END IF;
+				END $$;`,
+		t.username, t.username, t.password,
+	)
 	if err := tm.db.Exec(createUserSQL).Error; err != nil {
 		return fmt.Errorf("failed to create user %s: %v", t.username, err)
 	}

@@ -118,6 +118,7 @@ func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) e
 				return fmt.Errorf("failed to auto-migrate entity for schema %s: %w", schema, err)
 			}
 		}
+		log.Println("Tenant migrated:", schema)
 	}
 
 	return nil
