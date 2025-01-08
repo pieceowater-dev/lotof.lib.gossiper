@@ -106,3 +106,19 @@ func (p *Postgres) SwitchSchema(schema string) *gorm.DB {
 	}
 	return p.db
 }
+
+func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) error {
+	for _, schema := range schemas {
+		if err := p.SwitchSchema(schema).Error; err != nil {
+			return fmt.Errorf("failed to switch to schema %s: %w", schema, err)
+		}
+
+		for _, entity := range autoMigrateEntities {
+			if err := p.db.AutoMigrate(entity); err != nil {
+				return fmt.Errorf("failed to auto-migrate entity for schema %s: %w", schema, err)
+			}
+		}
+	}
+
+	return nil
+}

@@ -18,6 +18,7 @@ type Database interface {
 	WithTransaction(func(tx *gorm.DB) error) error
 	SeedData(data []any) error
 	SwitchSchema(schema string) *gorm.DB
+	MigrateTenants(schemas []string, autoMigrateEntities []any) error
 }
 
 // DatabaseType defines the type of databases supported

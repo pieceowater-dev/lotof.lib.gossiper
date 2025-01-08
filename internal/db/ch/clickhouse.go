@@ -68,7 +68,7 @@ func (p *Clickhouse) GetDB() *gorm.DB {
 }
 
 // WithTransaction executes a function within a transaction
-func (p *Clickhouse) WithTransaction(fn func(tx *gorm.DB) error) error {
+func (p *Clickhouse) WithTransaction(_ func(tx *gorm.DB) error) error {
 	return fmt.Errorf("transactions are not supported in ClickHouse")
 }
 
@@ -96,4 +96,8 @@ func (p *Clickhouse) SwitchSchema(schema string) *gorm.DB {
 		panic(fmt.Errorf("failed to switch schema: %w", err))
 	}
 	return p.db
+}
+
+func (p *Clickhouse) MigrateTenants(_ []string, _ []any) error {
+	panic(fmt.Errorf("not implemented yet"))
 }
