@@ -66,7 +66,7 @@ func (td data) toTenant(database string) (tenant, error) {
 // NewTenantManager creates a new TenantManager
 func NewTenantManager(db *gorm.DB, secret string) (*Manager, error) {
 	if len(secret) != 32 {
-		return nil, errors.New("secret must be 32 bytes for AES-256 encryption")
+		return nil, errors.New("secret must be 32 bytes")
 	}
 	return &Manager{
 		db:     db,
