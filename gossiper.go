@@ -167,3 +167,18 @@ type EncryptedTenant = tenant.EncryptedTenant
 func NewTenantManager(db *gorm.DB, secret string) (*TenantManager, error) {
 	return tenant.NewTenantManager(db, secret)
 }
+
+// GenerateRandomString creates a random alphanumeric string of the given length.
+func GenerateRandomString(length int) string {
+	return generic.GenerateRandomString(length)
+}
+
+// EncryptAES256 encrypts plaintext using AES-256 encryption in CTR mode.
+func EncryptAES256(key, plaintext string) (string, error) {
+	return generic.EncryptAES256(key, plaintext)
+}
+
+// DecryptAES256 decrypts a base64-encoded encrypted string using AES-256 in CTR mode.
+func DecryptAES256(key, encrypted string) (string, error) {
+	return generic.DecryptAES256(key, encrypted)
+}
