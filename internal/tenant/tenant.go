@@ -1,14 +1,10 @@
 package tenant
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
 	"gorm.io/gorm"
-	"io"
 	"log"
 	"strings"
 )
@@ -134,52 +130,30 @@ func (tm *Manager) seedSingleTenant(t tenant) error {
 
 // EncryptTenant encrypts tenant credentials using AES-256 encryption
 func (tm *Manager) EncryptTenant(t tenant) (string, error) {
-	data := []byte(t.toTenantData())
+	// Convert tenant to TenantData string
+	data := string(t.toTenantData())
 
-	block, err := aes.NewCipher(tm.secret)
+	// Use generic.EncryptAES256 to encrypt the data
+	encryptedData, err := generic.EncryptAES256(string(tm.secret), data)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to encrypt tenant data: %w", err)
 	}
-
-	ciphertext := make([]byte, aes.BlockSize+len(data))
-	iv := ciphertext[:aes.BlockSize]
-
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", err
-	}
-
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
-	encryptedData := base64.StdEncoding.EncodeToString(ciphertext)
 
 	return encryptedData, nil
 }
 
 // decryptTenant decrypts the encrypted tenant credentials
 func (tm *Manager) decryptTenant(et EncryptedTenant) (tenant, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(et.Credentials)
+	// Use generic.DecryptAES256 to decrypt the credentials
+	decryptedData, err := generic.DecryptAES256(string(tm.secret), et.Credentials)
 	if err != nil {
-		return tenant{}, fmt.Errorf("error decoding base64 string: %v", err)
+		return tenant{}, fmt.Errorf("failed to decrypt tenant data: %w", err)
 	}
 
-	if len(ciphertext) <= aes.BlockSize {
-		return tenant{}, errors.New("ciphertext too short after base64 decoding")
-	}
-
-	block, err := aes.NewCipher(tm.secret)
+	// Convert decrypted data back to tenant
+	t, err := data(decryptedData).toTenant(et.Namespace)
 	if err != nil {
-		return tenant{}, fmt.Errorf("error creating cipher: %v", err)
-	}
-
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
-
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(ciphertext, ciphertext)
-
-	t, err := data(ciphertext).toTenant(et.Namespace)
-	if err != nil {
-		return tenant{}, fmt.Errorf("error converting decrypted data: %v", err)
+		return tenant{}, fmt.Errorf("error converting decrypted data to tenant: %v", err)
 	}
 
 	return t, nil
