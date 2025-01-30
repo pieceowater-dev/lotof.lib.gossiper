@@ -9,10 +9,6 @@ import (
 	"text/template"
 )
 
-// USAGE:
-// external run ```gossiper gen -m some```
-// test: ```go run cmd/gossiper/main.go gen -m some```
-
 const svcTemplate = `package svc
 
 type {{.ModuleName}}Svc struct {}
@@ -172,6 +168,19 @@ func getDir(path string) string {
 	return strings.Join(parts[:len(parts)-1], "/")
 }
 
+// USAGE:
+//
+// Install globally:
+//
+// `go install github.com/pieceowater-dev/lotof.lib.gossiper/v2/cmd/gossiper@latest`
+//
+// Run CLI:
+//
+// `gossiper gen -m some`
+//
+// Local test without installation:
+//
+// `go run cmd/gossiper/main.go gen -m some`
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "gossiper",
