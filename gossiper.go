@@ -111,9 +111,9 @@ type PaginatedResult[T any] struct {
 }
 
 // NewPaginatedResult creates a new PaginatedResult with the given rows and total count.
-func NewPaginatedResult[T any](rows []T, count int, pagination generic.Pagination) PaginatedResult[T] {
+func NewPaginatedResult[T any](rows []T, count int) PaginatedResult[T] {
 	return PaginatedResult[T]{
-		PaginatedResult: generic.NewPaginatedResult(rows, count, pagination),
+		PaginatedResult: generic.NewPaginatedResult(rows, count),
 	}
 }
 
