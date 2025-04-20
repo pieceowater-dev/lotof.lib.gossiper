@@ -1,13 +1,12 @@
 package gossiper
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
-	rmqServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rabbitmq"
-	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/rest"
+	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/http/fiber"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/tenant"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/transport"
 	"google.golang.org/grpc"
@@ -47,9 +46,6 @@ type GRPCServer = grpcServ.Server
 // RESTServer represents a REST server instance.
 type RESTServer = restServ.Server
 
-// RMQServer represents a RabbitMQ server instance.
-type RMQServer = rmqServ.Server
-
 // NewServerManager creates a new instance of the server manager.
 // The server manager is responsible for starting and stopping multiple server instances.
 func NewServerManager() *ServerManager {
@@ -67,17 +63,11 @@ func NewGRPCServ(port string, server *grpc.Server, initRoute func(server *grpc.S
 
 // NewRESTServ creates a new REST server.
 // - port: The port number for the server.
-// - router: The Gin router instance.
+// - router: The router instance.
 // - initRoute: A function to initialize the server's routes.
 // Returns a `RESTServer` instance.
-func NewRESTServ(port string, router *gin.Engine, initRoute func(router *gin.Engine)) *RESTServer {
+func NewRESTServ(port string, router *fiber.App, initRoute func(router *fiber.App)) *RESTServer {
 	return restServ.New(port, router, initRoute)
-}
-
-// NewRMQServ creates a new RabbitMQ server.
-// Returns an `RMQServer` instance.
-func NewRMQServ() *RMQServer {
-	return rmqServ.New()
 }
 
 type Transport = transport.Transport

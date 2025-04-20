@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 	"google.golang.org/grpc"
 )
@@ -18,13 +18,13 @@ func main() {
 	serverManager.AddServer(gossiper.NewGRPCServ("50051", grpc.NewServer(), grpcInitRoute))
 
 	// Initialize the REST server.
-	restInitRoute := func(router *gin.Engine) {
+	restInitRoute := func(app *fiber.App) {
 		// Define a health check endpoint.
-		router.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{"status": "ok"})
+		app.Get("/health", func(c *fiber.Ctx) error {
+			return c.JSON(fiber.Map{"status": "ok"})
 		})
 	}
-	serverManager.AddServer(gossiper.NewRESTServ("8080", gin.Default(), restInitRoute))
+	serverManager.AddServer(gossiper.NewRESTServ("8080", fiber.New(), restInitRoute))
 
 	// Start all servers.
 	serverManager.StartAll()
