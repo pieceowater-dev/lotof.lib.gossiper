@@ -3,14 +3,9 @@ package transport
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
-	"time"
-
-	"reflect"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"reflect"
 )
 
 // GRPCTransport handles both client and server-side transport
@@ -23,39 +18,12 @@ func NewGRPCTransport(address string) *GRPCTransport {
 	return &GRPCTransport{address: address}
 }
 
-// CreateClient dynamically creates a gRPC client using the passed constructor with retry logic.
+// CreateClient dynamically creates a gRPC client using the passed constructor.
 func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
-	maxRetries := 8
-	initialDelay := 3 * time.Second
-	dialTimeout := 60 * time.Second
-
-	var conn *grpc.ClientConn
-	var err error
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Dial the gRPC connection with longer timeout
-		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
-		conn, err = grpc.DialContext(ctx, g.address,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock())
-		cancel()
-
-		if err == nil {
-			// Connection successful
-			break
-		}
-
-		if attempt < maxRetries-1 {
-			// Calculate exponential delay: 3s, 6s, 12s, 24s, 48s, 96s (multiply by 2 each time)
-			delay := initialDelay * time.Duration(1<<attempt)
-			log.Printf("Failed to connect to gRPC server %s (attempt %d/%d): %v. Retrying in %v...",
-				g.address, attempt+1, maxRetries, err, delay)
-			time.Sleep(delay)
-		} else {
-			log.Printf("Failed to connect to gRPC server %s after %d attempts: %v",
-				g.address, maxRetries, err)
-			return nil, fmt.Errorf("failed to connect to gRPC server after %d retries: %w", maxRetries, err)
-		}
+	// Dial the gRPC connection.
+	conn, err := grpc.Dial(g.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, errors.New("failed to connect to gRPC server: " + err.Error())
 	}
 
 	// Use reflection to call the constructor function dynamically
