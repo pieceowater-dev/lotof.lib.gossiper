@@ -25,15 +25,16 @@ func NewGRPCTransport(address string) *GRPCTransport {
 
 // CreateClient dynamically creates a gRPC client using the passed constructor with retry logic.
 func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
-	maxRetries := 4
+	maxRetries := 6
 	initialDelay := 3 * time.Second
+	dialTimeout := 30 * time.Second
 
 	var conn *grpc.ClientConn
 	var err error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Dial the gRPC connection with timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Dial the gRPC connection with longer timeout
+		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 		conn, err = grpc.DialContext(ctx, g.address,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock())
@@ -45,7 +46,7 @@ func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
 		}
 
 		if attempt < maxRetries-1 {
-			// Calculate exponential delay: 3s, 6s, 12s, 24s (multiply by 2 each time)
+			// Calculate exponential delay: 3s, 6s, 12s, 24s, 48s, 96s (multiply by 2 each time)
 			delay := initialDelay * time.Duration(1<<attempt)
 			log.Printf("Failed to connect to gRPC server %s (attempt %d/%d): %v. Retrying in %v...",
 				g.address, attempt+1, maxRetries, err, delay)
