@@ -25,9 +25,9 @@ func NewGRPCTransport(address string) *GRPCTransport {
 
 // CreateClient dynamically creates a gRPC client using the passed constructor with retry logic.
 func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
-	maxRetries := 6
+	maxRetries := 8
 	initialDelay := 3 * time.Second
-	dialTimeout := 30 * time.Second
+	dialTimeout := 60 * time.Second
 
 	var conn *grpc.ClientConn
 	var err error
