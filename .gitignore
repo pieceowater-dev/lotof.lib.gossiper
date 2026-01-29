@@ -1,3 +1,5 @@
+.*
+
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
@@ -23,4 +25,11 @@ go.work.sum
 
 # env file
 .env
-/.idea
+/.idea# Binaries without extension
+atrace-gtw
+atrace-tracker
+hub-gtw
+hub-users
+hub-namespaces
+capital-gtw
+capital-billing
