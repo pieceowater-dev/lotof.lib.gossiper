@@ -1,6 +1,9 @@
 package gossiper
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
@@ -58,6 +61,22 @@ func NewServerManager() *ServerManager {
 // Returns a `GRPCServer` instance.
 func NewGRPCServ(port string, server *grpc.Server, initRoute func(server *grpc.Server)) *GRPCServer {
 	return grpcServ.New(port, server, initRoute)
+}
+
+// NewDefaultGRPCServer creates a grpc.Server with OTel trace propagation pre-wired.
+// Use this instead of grpc.NewServer() so incoming trace context is automatically
+// received and propagated through the server's handler chain.
+func NewDefaultGRPCServer(opts ...grpc.ServerOption) *grpc.Server {
+	return grpcServ.NewDefaultServer(opts...)
+}
+
+// InitLogger sets the global slog logger to JSON output on stderr.
+// Call once at the top of main() so all log output is structured and
+// compatible with log aggregators (CloudWatch, Loki, etc.).
+func InitLogger() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
 }
 
 // NewRESTServ creates a new REST server.

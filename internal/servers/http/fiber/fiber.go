@@ -1,8 +1,9 @@
 package fiber
 
 import (
+	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
-	"log"
 )
 
 type Server struct {
@@ -23,13 +24,11 @@ func New(port string, app *fiber.App, initRoute func(app *fiber.App)) *Server {
 }
 
 func (r *Server) Start() error {
-	log.Print("\033[32m")
-	log.Printf("REST server running on port %s", r.Port)
-	log.Print("\033[0m")
+	slog.Info("REST server running", "port", r.Port)
 	return r.App.Listen(":" + r.Port)
 }
 
 func (r *Server) Stop() error {
-	log.Println("REST server stopping")
+	slog.Info("REST server stopping")
 	return r.App.Shutdown()
 }
