@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -48,7 +47,7 @@ func Init(ctx context.Context, cfg Config) (*slog.Logger, trace.Tracer, func(con
 	res, err := resource.Merge(
 		resource.Default(),
 		resource.NewSchemaless(
-			semconv.ServiceName(cfg.ServiceName),
+			attribute.String("service.name", cfg.ServiceName),
 			attribute.String("environment", cfg.Environment),
 		),
 	)
