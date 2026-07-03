@@ -241,3 +241,15 @@ func ObservabilityWithOutgoingMetadata(ctx context.Context) context.Context {
 func ObservabilityRequestID(ctx context.Context) string {
 	return observability.RequestID(ctx)
 }
+
+// RegisterTransportContextMiddleware sets a function that enriches the context
+// before every outgoing gRPC call made by the gossiper transport.
+// Call once at startup — typically to inject x-request-id and W3C traceparent
+// so all downstream services can correlate their logs with the same trace.
+//
+// Example:
+//
+//	gossiper.RegisterTransportContextMiddleware(observability.WithOutgoingMetadata)
+func RegisterTransportContextMiddleware(fn func(ctx context.Context) context.Context) {
+	transport.RegisterSendContextMiddleware(fn)
+}

@@ -15,6 +15,18 @@ import (
 // defaultCallTimeout is applied to Send calls that arrive without a deadline.
 const defaultCallTimeout = 10 * time.Second
 
+// sendContextMiddleware is an optional hook called on every outgoing gRPC Send.
+// Register it once at startup via RegisterSendContextMiddleware to inject
+// x-request-id, W3C traceparent, and any other cross-cutting metadata.
+var sendContextMiddleware func(ctx context.Context) context.Context
+
+// RegisterSendContextMiddleware sets a function that enriches the context before
+// every outgoing gRPC call made by this transport. Calling it again overwrites the
+// previous registration. Safe to call before any transport is created.
+func RegisterSendContextMiddleware(fn func(ctx context.Context) context.Context) {
+	sendContextMiddleware = fn
+}
+
 // retryServiceConfig enables transparent retries on transient failures.
 const retryServiceConfig = `{
 	"methodConfig": [{
@@ -71,6 +83,10 @@ func (g *GRPCTransport) Send(ctx context.Context, client any, serviceMethod stri
 	method := clientValue.MethodByName(serviceMethod)
 	if !method.IsValid() {
 		return nil, errors.New("invalid service method: " + serviceMethod)
+	}
+
+	if sendContextMiddleware != nil {
+		ctx = sendContextMiddleware(ctx)
 	}
 
 	if _, ok := ctx.Deadline(); !ok {
