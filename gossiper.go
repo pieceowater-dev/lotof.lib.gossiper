@@ -1,17 +1,20 @@
 package gossiper
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/observability"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
 	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/http/fiber"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/tenant"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/transport"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
@@ -189,4 +192,52 @@ func EncryptAES256(key, plaintext string) (string, error) {
 // DecryptAES256 decrypts a base64-encoded encrypted string using AES-256 in CTR mode.
 func DecryptAES256(key, encrypted string) (string, error) {
 	return generic.DecryptAES256(key, encrypted)
+}
+
+// ObservabilityConfig holds settings for initialising the observability stack.
+type ObservabilityConfig = observability.Config
+
+// InitObservability sets up the OTLP tracer provider and a structured JSON logger.
+// Returns logger, tracer, shutdown func, and any init error.
+// On error fall back to slog.Default() and trace.NewNoopTracerProvider().Tracer("noop").
+func InitObservability(ctx context.Context, cfg ObservabilityConfig) (*slog.Logger, trace.Tracer, func(context.Context) error, error) {
+	return observability.Init(ctx, cfg)
+}
+
+// ObservabilityFiberMiddleware instruments all incoming HTTP requests with trace context
+// propagation, request_id generation, span creation, and structured logging.
+// Must be registered before route handlers so every request gets a trace.
+func ObservabilityFiberMiddleware(logger *slog.Logger, tracer trace.Tracer) func(*fiber.Ctx) error {
+	return observability.FiberMiddleware(logger, tracer)
+}
+
+// ObservabilityGRPCServerInterceptor adds trace propagation, request_id extraction,
+// span creation, and structured logging to every incoming gRPC unary call.
+// Use as grpc.UnaryInterceptor on the gRPC server.
+func ObservabilityGRPCServerInterceptor(logger *slog.Logger, tracer trace.Tracer) grpc.UnaryServerInterceptor {
+	return observability.GRPCServerInterceptor(logger, tracer)
+}
+
+// ObservabilityGRPCClientInterceptor propagates request_id and OTel trace headers on
+// every outgoing gRPC call and records client spans.
+// Use as grpc.WithUnaryInterceptor on gRPC client connections.
+func ObservabilityGRPCClientInterceptor(logger *slog.Logger, tracer trace.Tracer) grpc.UnaryClientInterceptor {
+	return observability.GRPCClientInterceptor(logger, tracer)
+}
+
+// ObservabilityLoggerFromContext enriches logger with request_id, trace_id, span_id,
+// tenant, and user fields from the request context.
+func ObservabilityLoggerFromContext(ctx context.Context, base *slog.Logger) *slog.Logger {
+	return observability.LoggerFromContext(ctx, base)
+}
+
+// ObservabilityWithOutgoingMetadata injects request_id and OTel trace headers into the
+// outgoing gRPC metadata so downstream services can correlate their logs.
+func ObservabilityWithOutgoingMetadata(ctx context.Context) context.Context {
+	return observability.WithOutgoingMetadata(ctx)
+}
+
+// ObservabilityRequestID extracts the request_id from context.
+func ObservabilityRequestID(ctx context.Context) string {
+	return observability.RequestID(ctx)
 }
