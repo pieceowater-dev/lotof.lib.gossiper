@@ -98,28 +98,40 @@ func (tm *Manager) seedSingleTenant(t tenant) error {
 		return errors.New("tenant data is incomplete")
 	}
 
+	// database/username are SQL identifiers, not values - quote them properly
+	// instead of interpolating raw strings into CREATE SCHEMA/USER/GRANT.
+	schemaIdent, err := generic.QuotePGIdentifier(t.database)
+	if err != nil {
+		return fmt.Errorf("invalid tenant schema name %q: %w", t.database, err)
+	}
+	userIdent, err := generic.QuotePGIdentifier(t.username)
+	if err != nil {
+		return fmt.Errorf("invalid tenant username %q: %w", t.username, err)
+	}
+	passwordLiteral := generic.EscapePGStringLiteral(t.password)
+
 	// Create schema if it doesn't exist
-	createSchemaSQL := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", t.database)
+	createSchemaSQL := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaIdent)
 	if err := tm.db.Exec(createSchemaSQL).Error; err != nil {
 		return fmt.Errorf("failed to create schema %s: %v", t.database, err)
 	}
 
 	// Create user with password
 	createUserSQL := fmt.Sprintf(
-		`DO $$ 
+		`DO $$
 				BEGIN
-					IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '%s') THEN
-						CREATE USER %s WITH PASSWORD '%s';
+					IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %s) THEN
+						CREATE USER %s WITH PASSWORD %s;
 					END IF;
 				END $$;`,
-		t.username, t.username, t.password,
+		generic.EscapePGStringLiteral(t.username), userIdent, passwordLiteral,
 	)
 	if err := tm.db.Exec(createUserSQL).Error; err != nil {
 		return fmt.Errorf("failed to create user %s: %v", t.username, err)
 	}
 
 	// Grant all privileges on schema to user
-	grantPrivilegesSQL := fmt.Sprintf("GRANT ALL PRIVILEGES ON SCHEMA %s TO %s", t.database, t.username)
+	grantPrivilegesSQL := fmt.Sprintf("GRANT ALL PRIVILEGES ON SCHEMA %s TO %s", schemaIdent, userIdent)
 	if err := tm.db.Exec(grantPrivilegesSQL).Error; err != nil {
 		return fmt.Errorf("failed to grant privileges on schema %s to user %s: %v", t.database, t.username, err)
 	}

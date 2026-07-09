@@ -8,8 +8,34 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
+
+// pgIdentifierPattern matches plain, unquoted Postgres identifiers: a letter
+// or underscore followed by letters, digits, or underscores. Tenant schema
+// and role names are derived from namespace slugs and are never expected to
+// need anything outside this set.
+var pgIdentifierPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// QuotePGIdentifier validates that name looks like a plain Postgres
+// identifier and double-quotes it, so it can be safely interpolated into SQL
+// that has no bind-parameter support for identifiers (SET search_path,
+// CREATE SCHEMA/USER, GRANT, ...). Returns an error instead of silently
+// passing through anything unexpected.
+func QuotePGIdentifier(name string) (string, error) {
+	if !pgIdentifierPattern.MatchString(name) {
+		return "", fmt.Errorf("invalid identifier %q", name)
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`, nil
+}
+
+// EscapePGStringLiteral escapes a value for safe interpolation as a single-quoted
+// SQL string literal (e.g. inside a PASSWORD '...' clause where bind
+// parameters aren't available, such as within a DO $$ ... $$ block).
+func EscapePGStringLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
 
 // IsFieldValid checks if the field exists in the given struct, including embedded fields.
 // It verifies by matching field names directly or their snake_case equivalents.

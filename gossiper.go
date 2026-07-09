@@ -73,6 +73,15 @@ func NewDefaultGRPCServer(opts ...grpc.ServerOption) *grpc.Server {
 	return grpcServ.NewDefaultServer(opts...)
 }
 
+// RecoveryUnaryServerInterceptor recovers from panics in a gRPC handler and
+// converts them into a codes.Internal error instead of letting them crash
+// the whole process for every tenant sharing it. Put it first in your
+// service's grpc.ChainUnaryInterceptor(...) call so it wraps every
+// interceptor that runs after it.
+func RecoveryUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	return grpcServ.RecoveryUnaryServerInterceptor()
+}
+
 // InitLogger sets the global slog logger to JSON output on stderr.
 // Call once at the top of main() so all log output is structured and
 // compatible with log aggregators (CloudWatch, Loki, etc.).

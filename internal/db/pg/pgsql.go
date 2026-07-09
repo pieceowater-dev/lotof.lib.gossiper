@@ -9,6 +9,8 @@ import (
 	"os"
 	"reflect"
 	"time"
+
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
 )
 
 type Postgres struct {
@@ -100,11 +102,19 @@ func (p *Postgres) SeedData(data []any) error {
 	return nil
 }
 
+// SwitchSchema points the connection's search_path at the given tenant
+// schema. On failure - including an invalid schema name - it returns a
+// *gorm.DB with .Error set, following the same convention as every other
+// GORM call in this codebase, instead of panicking and taking the whole
+// process down over one bad request.
 func (p *Postgres) SwitchSchema(schema string) *gorm.DB {
-	if err := p.db.Exec(fmt.Sprintf("SET search_path TO %s", schema)).Error; err != nil {
-		panic(fmt.Errorf("failed to switch schema: %w", err))
+	quoted, err := generic.QuotePGIdentifier(schema)
+	if err != nil {
+		errDB := p.db.Session(&gorm.Session{})
+		errDB.Error = fmt.Errorf("failed to switch schema: %w", err)
+		return errDB
 	}
-	return p.db
+	return p.db.Exec(fmt.Sprintf("SET search_path TO %s", quoted))
 }
 
 func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) error {
