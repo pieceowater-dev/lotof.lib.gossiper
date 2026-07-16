@@ -34,7 +34,20 @@ func NewPostgres(dsn string, enableLogs bool, autoMigrateEntities []any) *Postgr
 		newLogger = logger.Default.LogMode(logger.Silent)
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	// PreferSimpleProtocol disables server-side prepared statement caching.
+	// This connection pool is shared across every tenant, and SwitchSchema
+	// below repoints search_path per request on whatever connection gets
+	// checked out — a cached prepared plan from one tenant's schema is
+	// therefore not safe to reuse against another tenant's identically
+	// named table, since Postgres binds a prepared plan's result type to
+	// the specific relation OIDs seen at PREPARE time. Reusing it after
+	// search_path changes underneath it raises "cached plan must not
+	// change result type" (SQLSTATE 0A000). Simple protocol re-sends
+	// literal SQL every time, so there's no stale plan to go stale.
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{
 		Logger: newLogger,
 	})
 	if err != nil {
