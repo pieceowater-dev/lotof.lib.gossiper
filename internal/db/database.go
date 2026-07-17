@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	postgresql "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db/pg"
 	"gorm.io/gorm"
@@ -8,7 +9,6 @@ import (
 
 const (
 	PostgresDB DatabaseType = iota
-	
 )
 
 // Database defines the common methods for database operations
@@ -16,7 +16,13 @@ type Database interface {
 	GetDB() *gorm.DB
 	WithTransaction(func(tx *gorm.DB) error) error
 	SeedData(data []any) error
+	// SwitchSchema is unsafe against a pooled connection — see the
+	// implementation's doc comment. Prefer WithSchema.
 	SwitchSchema(schema string) *gorm.DB
+	// WithSchema runs fn on a connection pinned to schema's search_path for
+	// the duration of the call. This is the safe way to do tenant-scoped
+	// work against a shared connection pool.
+	WithSchema(ctx context.Context, schema string, fn func(tx *gorm.DB) error) error
 	MigrateTenants(schemas []string, autoMigrateEntities []any) error
 }
 

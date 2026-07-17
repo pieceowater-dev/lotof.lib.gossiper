@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"context"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -115,11 +116,21 @@ func (p *Postgres) SeedData(data []any) error {
 	return nil
 }
 
-// SwitchSchema points the connection's search_path at the given tenant
-// schema. On failure - including an invalid schema name - it returns a
-// *gorm.DB with .Error set, following the same convention as every other
-// GORM call in this codebase, instead of panicking and taking the whole
-// process down over one bad request.
+// SwitchSchema points a checked-out connection's search_path at the given
+// tenant schema and immediately releases that connection back to the pool.
+//
+// Deprecated: this is unsafe to use for anything beyond a diagnostic Exec.
+// Postgres's search_path is a per-session (per-connection) setting, while
+// *sql.DB pools many physical connections — the very next call against
+// GetDB() checks out a connection independently and is NOT guaranteed to
+// be the same one this just configured. In practice, under any concurrency
+// (or even a tight sequential loop across many schemas, as tenant
+// migration does), queries silently run against whatever search_path the
+// connection previously had — typically "public" — instead of the
+// intended tenant schema, with no error raised anywhere. Use WithSchema
+// instead, which pins one connection for the whole operation via a
+// transaction. Kept only for source compatibility with existing callers;
+// do not use it in new code.
 func (p *Postgres) SwitchSchema(schema string) *gorm.DB {
 	quoted, err := generic.QuotePGIdentifier(schema)
 	if err != nil {
@@ -130,16 +141,40 @@ func (p *Postgres) SwitchSchema(schema string) *gorm.DB {
 	return p.db.Exec(fmt.Sprintf("SET search_path TO %s", quoted))
 }
 
-func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) error {
-	for _, schema := range schemas {
-		if err := p.SwitchSchema(schema).Error; err != nil {
-			return fmt.Errorf("failed to switch to schema %s: %w", schema, err)
+// WithSchema runs fn against a connection pinned to the given tenant
+// schema's search_path for the lifetime of the call, then releases it —
+// the safe replacement for SwitchSchema()-then-separate-query. A
+// transaction is the standard Go database/sql idiom for pinning exactly
+// one physical connection across multiple statements (SET search_path,
+// then fn's own queries), which is what closes the race described on
+// SwitchSchema. Postgres DDL is transactional, so this is equally safe to
+// use for AutoMigrate as for ordinary CRUD.
+func (p *Postgres) WithSchema(ctx context.Context, schema string, fn func(tx *gorm.DB) error) error {
+	quoted, err := generic.QuotePGIdentifier(schema)
+	if err != nil {
+		return fmt.Errorf("failed to switch schema: %w", err)
+	}
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
+			return fmt.Errorf("failed to set search_path: %w", err)
 		}
+		return fn(tx)
+	})
+}
 
-		for _, entity := range autoMigrateEntities {
-			if err := p.db.AutoMigrate(entity); err != nil {
-				return fmt.Errorf("failed to auto-migrate entity for schema %s: %w", schema, err)
+func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) error {
+	ctx := context.Background()
+	for _, schema := range schemas {
+		err := p.WithSchema(ctx, schema, func(tx *gorm.DB) error {
+			for _, entity := range autoMigrateEntities {
+				if err := tx.AutoMigrate(entity); err != nil {
+					return fmt.Errorf("failed to auto-migrate entity for schema %s: %w", schema, err)
+				}
 			}
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 		log.Println("Tenant migrated:", schema)
 	}
