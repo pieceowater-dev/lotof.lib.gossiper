@@ -162,6 +162,23 @@ func (p *Postgres) WithSchema(ctx context.Context, schema string, fn func(tx *go
 	})
 }
 
+// WithSchemaReadOnly is WithSchema without the enclosing transaction — see
+// the Database interface doc comment for when this is (and isn't) safe to
+// use. Connection() pins the same one physical connection Transaction()
+// would have, just without BEGIN/COMMIT.
+func (p *Postgres) WithSchemaReadOnly(ctx context.Context, schema string, fn func(tx *gorm.DB) error) error {
+	quoted, err := generic.QuotePGIdentifier(schema)
+	if err != nil {
+		return fmt.Errorf("failed to switch schema: %w", err)
+	}
+	return p.db.WithContext(ctx).Connection(func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
+			return fmt.Errorf("failed to set search_path: %w", err)
+		}
+		return fn(tx)
+	})
+}
+
 func (p *Postgres) MigrateTenants(schemas []string, autoMigrateEntities []any) error {
 	ctx := context.Background()
 	for _, schema := range schemas {

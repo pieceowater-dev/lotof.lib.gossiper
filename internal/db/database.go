@@ -23,6 +23,15 @@ type Database interface {
 	// the duration of the call. This is the safe way to do tenant-scoped
 	// work against a shared connection pool.
 	WithSchema(ctx context.Context, schema string, fn func(tx *gorm.DB) error) error
+	// WithSchemaReadOnly is WithSchema without the enclosing transaction —
+	// same connection-pinning safety, but skips the BEGIN/COMMIT round trip
+	// and the extra Postgres-side transaction bookkeeping. Measured ~25%
+	// additional throughput under load once other bottlenecks were fixed
+	// (see lotof.menu.gtw's 2026-07-29 stress test). ONLY safe for fn bodies
+	// that issue a single read statement (or several reads) — never use
+	// this for multi-statement writes that need atomicity, since there is
+	// no rollback if a later statement in fn fails.
+	WithSchemaReadOnly(ctx context.Context, schema string, fn func(tx *gorm.DB) error) error
 	MigrateTenants(schemas []string, autoMigrateEntities []any) error
 }
 
