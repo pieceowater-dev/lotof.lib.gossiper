@@ -1,6 +1,6 @@
 module github.com/pieceowater-dev/lotof.lib.gossiper/v2
 
-go 1.25.0
+go 1.27.1
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.6
