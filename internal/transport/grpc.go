@@ -27,6 +27,21 @@ func RegisterSendContextMiddleware(fn func(ctx context.Context) context.Context)
 	sendContextMiddleware = fn
 }
 
+// clientUnaryInterceptors are applied (in order) to every gRPC client
+// connection built by CreateClient -- unlike sendContextMiddleware they also
+// cover direct typed-client calls, not just the reflection-based Send.
+// Register once at startup via RegisterClientUnaryInterceptor (e.g. to attach
+// a service-to-service auth token to every outgoing call).
+var clientUnaryInterceptors []grpc.UnaryClientInterceptor
+
+// RegisterClientUnaryInterceptor appends a client-side unary interceptor that
+// CreateClient will chain onto new connections. Call before creating clients.
+func RegisterClientUnaryInterceptor(i grpc.UnaryClientInterceptor) {
+	if i != nil {
+		clientUnaryInterceptors = append(clientUnaryInterceptors, i)
+	}
+}
+
 // retryServiceConfig enables transparent retries on transient failures.
 const retryServiceConfig = `{
 	"methodConfig": [{
@@ -54,12 +69,15 @@ func NewGRPCTransport(address string) *GRPCTransport {
 // The underlying connection includes OTel trace propagation, retry policy,
 // and a stats handler for observability.
 func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
-	conn, err := grpc.NewClient(
-		g.address,
+	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(retryServiceConfig),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-	)
+	}
+	if len(clientUnaryInterceptors) > 0 {
+		dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(clientUnaryInterceptors...))
+	}
+	conn, err := grpc.NewClient(g.address, dialOpts...)
 	if err != nil {
 		return nil, errors.New("failed to connect to gRPC server: " + err.Error())
 	}

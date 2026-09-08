@@ -262,3 +262,13 @@ func ObservabilityRequestID(ctx context.Context) string {
 func RegisterTransportContextMiddleware(fn func(ctx context.Context) context.Context) {
 	transport.RegisterSendContextMiddleware(fn)
 }
+
+// RegisterClientUnaryInterceptor appends a client-side unary interceptor that is
+// chained onto every gRPC client connection gossiper's transport builds
+// (CreateClient). Unlike RegisterTransportContextMiddleware it also covers
+// direct typed-client calls, not just the reflection Send. Call once at
+// startup, before any client is created. Typical use: attach a
+// service-to-service auth token to every outgoing call.
+func RegisterClientUnaryInterceptor(i grpc.UnaryClientInterceptor) {
+	transport.RegisterClientUnaryInterceptor(i)
+}
