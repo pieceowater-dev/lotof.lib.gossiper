@@ -23,12 +23,16 @@ const (
 	// aged-out connection is closed. Every LOTOF RPC is unary, so this only
 	// has to cover one slow call, not a long-lived stream.
 	grpcServerMaxConnectionAgeGrace = 15 * time.Second
+	// grpcServerMinClientPingInterval is the fastest keepalive ping rate the
+	// server tolerates from a client.
+	grpcServerMinClientPingInterval = 10 * time.Second
 )
 
 // NewGRPCServer builds an inbound gRPC server with the baseline every LOTOF
 // service needs, so it can't drift between repositories:
 //
-//   - keepalive MaxConnectionAge 15m / grace 15s (see grpcServerMaxConnectionAge);
+//   - keepalive MaxConnectionAge 15m / grace 15s (see grpcServerMaxConnectionAge),
+//     and client pings accepted every 10s (see grpcServerMinClientPingInterval);
 //   - RecoveryUnaryServerInterceptor as the outermost interceptor, followed by
 //     `interceptors` in the given order -- a panic anywhere in the chain or
 //     the handler becomes codes.Internal instead of killing the process;
@@ -44,6 +48,14 @@ func NewGRPCServer(interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, *
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionAge:      grpcServerMaxConnectionAge,
 			MaxConnectionAgeGrace: grpcServerMaxConnectionAgeGrace,
+		}),
+		// Accept client keepalive pings as often as every 10s, even with no
+		// call in flight. The default (at most one per 5 minutes) answers
+		// faster pings with GOAWAY "too_many_pings"; clients need them to
+		// notice a connection to a pod that is already gone.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             grpcServerMinClientPingInterval,
+			PermitWithoutStream: true,
 		}),
 		grpc.ChainUnaryInterceptor(chain...),
 	)

@@ -70,3 +70,29 @@ func RetryReadsUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 		}
 	}
 }
+
+// DefaultCallDeadline bounds outgoing calls whose context carries no deadline.
+// It matches the load balancer's idle timeout: past it the HTTP request that
+// triggered the call is gone anyway, so there is nothing left to wait for.
+const DefaultCallDeadline = 60 * time.Second
+
+// DefaultDeadlineUnaryClientInterceptor gives every call without a deadline
+// one of d. Calls that already have a deadline (explicit timeouts, Send's
+// 10s default) keep theirs.
+func DefaultDeadlineUnaryClientInterceptor(d time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if _, ok := ctx.Deadline(); !ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, d)
+			defer cancel()
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// PlatformClientInterceptors are applied innermost on every connection built
+// by CreateClient or dialled with gossiper.WithClientInterceptors: a default
+// deadline, then read-only retries (which therefore share that deadline).
+func PlatformClientInterceptors() []grpc.UnaryClientInterceptor {
+	return []grpc.UnaryClientInterceptor{DefaultDeadlineUnaryClientInterceptor(DefaultCallDeadline), RetryReadsUnaryClientInterceptor()}
+}

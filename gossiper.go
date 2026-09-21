@@ -274,10 +274,13 @@ func RegisterClientUnaryInterceptor(i grpc.UnaryClientInterceptor) {
 }
 
 // WithClientInterceptors is a dial option chaining every interceptor registered
-// via RegisterClientUnaryInterceptor, followed by extra. Use it on connections
-// dialled with grpc.NewClient directly (connection pools, one-off clients) so
-// they get exactly what CreateClient connections get -- e.g. the service-auth
-// token -- instead of silently going out without it. Register first, dial after.
+// via RegisterClientUnaryInterceptor, then extra, then the platform defaults
+// (a 60s deadline for calls without one, read-only retries on Unavailable).
+// Use it on connections dialled with grpc.NewClient directly (connection
+// pools, one-off clients) so they get exactly what CreateClient connections
+// get -- e.g. the service-auth token -- instead of silently going out without
+// it. Register first, dial after.
 func WithClientInterceptors(extra ...grpc.UnaryClientInterceptor) grpc.DialOption {
-	return grpc.WithChainUnaryInterceptor(append(transport.ClientUnaryInterceptors(), extra...)...)
+	chain := append(append(transport.ClientUnaryInterceptors(), extra...), transport.PlatformClientInterceptors()...)
+	return grpc.WithChainUnaryInterceptor(chain...)
 }

@@ -71,3 +71,26 @@ func TestRetryReads_StopsAtDeadline(t *testing.T) {
 		t.Fatalf("must not wait past the deadline (first backoff is 100ms), got calls=%d err=%v after %v", calls, err, time.Since(start))
 	}
 }
+
+func TestDefaultDeadline_AddsOnlyWhenMissing(t *testing.T) {
+	var got time.Time
+	var had bool
+	invoker := func(ctx context.Context, _ string, _, _ any, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
+		got, had = ctx.Deadline()
+		return nil
+	}
+	icpt := DefaultDeadlineUnaryClientInterceptor(time.Minute)
+
+	_ = icpt(context.Background(), "/x.Y/Z", nil, nil, nil, invoker)
+	if !had || time.Until(got) > time.Minute || time.Until(got) < 50*time.Second {
+		t.Fatalf("a call without a deadline must get one of ~1m, got had=%v in %v", had, time.Until(got))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	want, _ := ctx.Deadline()
+	_ = icpt(ctx, "/x.Y/Z", nil, nil, nil, invoker)
+	if !got.Equal(want) {
+		t.Fatalf("an existing deadline must be kept, got %v want %v", got, want)
+	}
+}

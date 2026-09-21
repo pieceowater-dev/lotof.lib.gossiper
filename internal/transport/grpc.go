@@ -71,9 +71,10 @@ func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
-	// Registered interceptors first (auth, tracing, ...), the read-only retry
-	// innermost so every attempt goes out with the same metadata.
-	chain := append(append([]grpc.UnaryClientInterceptor{}, clientUnaryInterceptors...), RetryReadsUnaryClientInterceptor())
+	// Registered interceptors first (auth, tracing, ...), then the platform
+	// ones: a default deadline and read-only retries, innermost so every
+	// attempt goes out with the same metadata within the same deadline.
+	chain := append(append([]grpc.UnaryClientInterceptor{}, clientUnaryInterceptors...), PlatformClientInterceptors()...)
 	dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(chain...))
 	conn, err := grpc.NewClient(g.address, dialOpts...)
 	if err != nil {
