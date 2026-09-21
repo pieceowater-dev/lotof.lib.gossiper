@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/observability"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/observability"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
 	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/http/fiber"

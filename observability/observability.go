@@ -40,9 +40,15 @@ const (
 	ctxKeyUser      ctxKey = "user"
 )
 
-// Init sets up the OTLP tracer provider and a JSON structured logger.
+// Init sets up the tracer provider and a JSON structured logger.
 // Returns logger, tracer, shutdown func, and any init error.
 // On error the caller should fall back to slog.Default() and a noop tracer.
+//
+// Spans are exported over OTLP/HTTP only when cfg.OtlpEndpoint is set. With
+// an empty endpoint the tracer provider still assigns trace/span IDs (so
+// logs stay correlatable and trace context still propagates between
+// services), it just doesn't ship spans anywhere -- instead of retrying a
+// collector that isn't there and logging an export error every few seconds.
 func Init(ctx context.Context, cfg Config) (*slog.Logger, trace.Tracer, func(context.Context) error, error) {
 	res, err := resource.Merge(
 		resource.Default(),
@@ -55,19 +61,22 @@ func Init(ctx context.Context, cfg Config) (*slog.Logger, trace.Tracer, func(con
 		return nil, nil, nil, err
 	}
 
-	exporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(normalizeOTLPEndpoint(cfg.OtlpEndpoint)),
-		otlptracehttp.WithInsecure(),
-	)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	tp := tracesdk.NewTracerProvider(
-		tracesdk.WithBatcher(exporter),
+	tpOpts := []tracesdk.TracerProviderOption{
 		tracesdk.WithSampler(tracesdk.TraceIDRatioBased(cfg.SampleRatio)),
 		tracesdk.WithResource(res),
-	)
+	}
+	if endpoint := normalizeOTLPEndpoint(cfg.OtlpEndpoint); endpoint != "" {
+		exporter, err := otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpoint(endpoint),
+			otlptracehttp.WithInsecure(),
+		)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		tpOpts = append(tpOpts, tracesdk.WithBatcher(exporter))
+	}
+
+	tp := tracesdk.NewTracerProvider(tpOpts...)
 
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
@@ -181,7 +190,10 @@ func FiberMiddleware(logger *slog.Logger, tracer trace.Tracer) func(c *fiber.Ctx
 			reqID = uuid.NewString()
 		}
 
-		ctx = WithRequestData(ctx, reqID, c.Get("Namespace"), c.Get("Authorization"))
+		// The user field is left empty on purpose: at this point the request
+		// is not authenticated yet, and the only thing available is the raw
+		// Authorization header -- a credential that must never reach logs.
+		ctx = WithRequestData(ctx, reqID, c.Get("Namespace"), "")
 		ctx = WithOutgoingMetadata(ctx)
 
 		ctx, span := tracer.Start(ctx, c.Method()+" "+c.Route().Path,
@@ -298,8 +310,8 @@ func GRPCClientInterceptor(logger *slog.Logger, tracer trace.Tracer) grpc.UnaryC
 // mapCarrier adapts a plain string map to an OTel propagation.TextMapCarrier.
 type mapCarrier map[string]string
 
-func (c mapCarrier) Get(key string) string        { return c[strings.ToLower(key)] }
-func (c mapCarrier) Set(key, value string)        { c[strings.ToLower(key)] = value }
+func (c mapCarrier) Get(key string) string { return c[strings.ToLower(key)] }
+func (c mapCarrier) Set(key, value string) { c[strings.ToLower(key)] = value }
 func (c mapCarrier) Keys() []string {
 	keys := make([]string, 0, len(c))
 	for k := range c {
