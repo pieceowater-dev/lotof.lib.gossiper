@@ -54,20 +54,6 @@ func ResetClientUnaryInterceptorsForTest(i []grpc.UnaryClientInterceptor) {
 	clientUnaryInterceptors = i
 }
 
-// retryServiceConfig enables transparent retries on transient failures.
-const retryServiceConfig = `{
-	"methodConfig": [{
-		"name": [{"service": ""}],
-		"retryPolicy": {
-			"maxAttempts": 3,
-			"initialBackoff": "0.1s",
-			"maxBackoff": "1s",
-			"backoffMultiplier": 2.0,
-			"retryableStatusCodes": ["UNAVAILABLE", "RESOURCE_EXHAUSTED"]
-		}
-	}]
-}`
-
 // GRPCTransport handles client-side gRPC transport.
 type GRPCTransport struct {
 	address string
@@ -78,17 +64,17 @@ func NewGRPCTransport(address string) *GRPCTransport {
 }
 
 // CreateClient creates a gRPC client using the passed constructor.
-// The underlying connection includes OTel trace propagation, retry policy,
+// The underlying connection includes OTel trace propagation, read-only retries,
 // and a stats handler for observability.
 func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(retryServiceConfig),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
-	if len(clientUnaryInterceptors) > 0 {
-		dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(clientUnaryInterceptors...))
-	}
+	// Registered interceptors first (auth, tracing, ...), the read-only retry
+	// innermost so every attempt goes out with the same metadata.
+	chain := append(append([]grpc.UnaryClientInterceptor{}, clientUnaryInterceptors...), RetryReadsUnaryClientInterceptor())
+	dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(chain...))
 	conn, err := grpc.NewClient(g.address, dialOpts...)
 	if err != nil {
 		return nil, errors.New("failed to connect to gRPC server: " + err.Error())
