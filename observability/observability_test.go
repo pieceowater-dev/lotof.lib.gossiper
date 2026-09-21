@@ -3,6 +3,7 @@ package observability
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 )
 
 func TestInit_WithoutEndpoint_StillTraces(t *testing.T) {
@@ -79,5 +81,54 @@ func TestFiberMiddleware_DoesNotLogAuthorization(t *testing.T) {
 	}
 	if !strings.Contains(logged, `"tenant":"acme"`) {
 		t.Fatalf("namespace should still be logged as tenant, got %q", logged)
+	}
+}
+
+func TestFiberMiddleware_SkipsSuccessfulHealthProbes(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	app := fiber.New()
+	app.Use(FiberMiddleware(logger, trace.NewNoopTracerProvider().Tracer("test")))
+	app.Get("/health", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/health/ready", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusServiceUnavailable) })
+	app.Get("/ping", func(c *fiber.Ctx) error { return c.SendString("pong") })
+
+	for _, target := range []string{"/health", "/health/ready", "/ping"} {
+		if _, err := app.Test(httptest.NewRequest("GET", target, nil)); err != nil {
+			t.Fatalf("GET %s: %v", target, err)
+		}
+	}
+
+	logged := buf.String()
+	if strings.Contains(logged, `"route":"/health"`) {
+		t.Fatalf("a successful health probe must not be logged, got %q", logged)
+	}
+	if !strings.Contains(logged, "health probe failed") || !strings.Contains(logged, `"route":"/health/ready"`) {
+		t.Fatalf("a failing health probe must still be logged, got %q", logged)
+	}
+	if strings.Count(logged, "http request completed") != 1 || !strings.Contains(logged, `"route":"/ping"`) {
+		t.Fatalf("ordinary requests must be logged exactly as before, got %q", logged)
+	}
+}
+
+func TestGRPCServerInterceptor_SkipsSuccessfulHealthChecks(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	icpt := GRPCServerInterceptor(logger, trace.NewNoopTracerProvider().Tracer("test"))
+	ok := func(context.Context, any) (any, error) { return "ok", nil }
+	fail := func(context.Context, any) (any, error) { return nil, errors.New("db down") }
+
+	_, _ = icpt(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/grpc.health.v1.Health/Check"}, ok)
+	if buf.Len() != 0 {
+		t.Fatalf("a successful health check must not be logged, got %q", buf.String())
+	}
+	_, _ = icpt(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/grpc.health.v1.Health/Check"}, fail)
+	if !strings.Contains(buf.String(), "health probe failed") {
+		t.Fatalf("a failing health check must be logged, got %q", buf.String())
+	}
+	buf.Reset()
+	_, _ = icpt(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/menu.MenuService/List"}, ok)
+	if !strings.Contains(buf.String(), "grpc request completed") {
+		t.Fatalf("ordinary calls must be logged exactly as before, got %q", buf.String())
 	}
 }

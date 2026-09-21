@@ -164,12 +164,26 @@ func WithOutgoingMetadata(ctx context.Context) context.Context {
 // - propagates OTel trace context from headers
 // - creates a server span for the request
 // - logs completion (or failure) with full tracing fields
+//
+// Successful health probes (see isHTTPHealthProbe) skip all of the above.
 func FiberMiddleware(logger *slog.Logger, tracer trace.Tracer) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 		ctx := c.UserContext()
 		if ctx == nil {
 			ctx = context.Background()
+		}
+
+		if isHTTPHealthProbe(c) {
+			err := c.Next()
+			if status := c.Response().StatusCode(); err != nil || status >= 400 {
+				args := []any{slog.String("route", c.Path()), slog.Int("status", status)}
+				if err != nil {
+					args = append(args, slog.String("error", err.Error()))
+				}
+				LoggerFromContext(ctx, logger).Warn("health probe failed", args...)
+			}
+			return err
 		}
 
 		headers := c.GetReqHeaders()
@@ -241,8 +255,21 @@ func FiberMiddleware(logger *slog.Logger, tracer trace.Tracer) func(c *fiber.Ctx
 
 // GRPCServerInterceptor adds tracing, structured logging, and request_id propagation
 // to every incoming gRPC unary call. Use as grpc.UnaryInterceptor on the server.
+// Health-service calls (kubelet probes) pass through untraced and are logged
+// only when they fail.
 func GRPCServerInterceptor(logger *slog.Logger, tracer trace.Tracer) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if strings.HasPrefix(info.FullMethod, grpcHealthServicePrefix) {
+			resp, err := handler(ctx, req)
+			if err != nil {
+				LoggerFromContext(ctx, logger).Warn("health probe failed",
+					slog.String("method", info.FullMethod),
+					slog.String("error", err.Error()),
+				)
+			}
+			return resp, err
+		}
+
 		md, _ := metadata.FromIncomingContext(ctx)
 		ctx = otel.GetTextMapPropagator().Extract(ctx, metadataCarrier(md))
 
@@ -305,6 +332,23 @@ func GRPCClientInterceptor(logger *slog.Logger, tracer trace.Tracer) grpc.UnaryC
 		)
 		return nil
 	}
+}
+
+// grpcHealthServicePrefix matches the standard gRPC health service. Its
+// callers are the kubelet probes, every few seconds, forever.
+const grpcHealthServicePrefix = "/grpc.health.v1.Health/"
+
+// httpHealthPaths are the routes load balancer and kubelet probes hit. "/" is
+// included because it is the ALB's default health-check path.
+var httpHealthPaths = map[string]bool{"/": true, "/health": true, "/health/live": true, "/health/ready": true}
+
+// isHTTPHealthProbe reports whether the request is a liveness/readiness probe.
+// Successful probes are neither logged nor traced: on a quiet gateway they
+// were nearly every line of its log, burying the requests that matter.
+// Failing probes are still logged (see FiberMiddleware).
+func isHTTPHealthProbe(c *fiber.Ctx) bool {
+	m := c.Method()
+	return (m == fiber.MethodGet || m == fiber.MethodHead) && httpHealthPaths[c.Path()]
 }
 
 // mapCarrier adapts a plain string map to an OTel propagation.TextMapCarrier.
