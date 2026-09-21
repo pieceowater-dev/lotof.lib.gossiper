@@ -2,11 +2,13 @@ package gossiper
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -27,17 +29,38 @@ func ServiceAuthClientInterceptor(secret string) grpc.UnaryClientInterceptor {
 	}
 }
 
+// Service-auth modes for ServiceAuthServerInterceptorWithMode.
+const (
+	// ServiceAuthEnforce rejects a call without a valid token with
+	// codes.Unauthenticated.
+	ServiceAuthEnforce = "enforce"
+	// ServiceAuthReport lets such a call through but logs a warning naming the
+	// method and the peer. Use it to switch a service on safely: set the
+	// secret in report mode, confirm no warnings appear under real traffic
+	// (every caller already sends the token), then switch to enforce.
+	ServiceAuthReport = "report"
+)
+
 // ServiceAuthServerInterceptor returns a server-side unary interceptor that
 // rejects calls whose ServiceAuthMetadataKey metadata does not equal
-// `secret`. Behaviour:
+// `secret`. It is ServiceAuthServerInterceptorWithMode in enforce mode.
+func ServiceAuthServerInterceptor(secret string, exemptPrefixes ...string) grpc.UnaryServerInterceptor {
+	return ServiceAuthServerInterceptorWithMode(secret, ServiceAuthEnforce, exemptPrefixes...)
+}
+
+// ServiceAuthServerInterceptorWithMode checks the ServiceAuthMetadataKey
+// metadata against `secret`:
 //
 //   - `secret` empty            -> no-op (allow all); lets the interceptor be
-//     deployed before the secret is configured, then enforcement turns on the
-//     moment the env var is set, with no code redeploy.
+//     deployed before the secret is configured.
 //   - method in `exemptPrefixes` -> allowed without a token (health checks,
 //     reflection, any genuinely public RPC). Matched by prefix on the full
 //     method string, e.g. "/grpc.health.v1.Health/".
-func ServiceAuthServerInterceptor(secret string, exemptPrefixes ...string) grpc.UnaryServerInterceptor {
+//   - otherwise a missing/invalid token is rejected (ServiceAuthEnforce) or
+//     logged and allowed (ServiceAuthReport). Any other mode value, including
+//     "", means enforce -- a typo must not silently turn the check off.
+func ServiceAuthServerInterceptorWithMode(secret, mode string, exemptPrefixes ...string) grpc.UnaryServerInterceptor {
+	report := mode == ServiceAuthReport
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if secret == "" {
 			return handler(ctx, req)
@@ -53,6 +76,22 @@ func ServiceAuthServerInterceptor(secret string, exemptPrefixes ...string) grpc.
 			got = v[0]
 		}
 		if subtleConstEq(got, secret) {
+			return handler(ctx, req)
+		}
+		if report {
+			reason := "invalid token"
+			if got == "" {
+				reason = "missing token"
+			}
+			caller := ""
+			if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+				caller = p.Addr.String()
+			}
+			slog.Warn("service auth: call without a valid token (report mode, allowed)",
+				slog.String("method", info.FullMethod),
+				slog.String("reason", reason),
+				slog.String("peer", caller),
+			)
 			return handler(ctx, req)
 		}
 		return nil, status.Error(codes.Unauthenticated, "service auth: missing or invalid "+ServiceAuthMetadataKey)

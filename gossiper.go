@@ -272,3 +272,12 @@ func RegisterTransportContextMiddleware(fn func(ctx context.Context) context.Con
 func RegisterClientUnaryInterceptor(i grpc.UnaryClientInterceptor) {
 	transport.RegisterClientUnaryInterceptor(i)
 }
+
+// WithClientInterceptors is a dial option chaining every interceptor registered
+// via RegisterClientUnaryInterceptor, followed by extra. Use it on connections
+// dialled with grpc.NewClient directly (connection pools, one-off clients) so
+// they get exactly what CreateClient connections get -- e.g. the service-auth
+// token -- instead of silently going out without it. Register first, dial after.
+func WithClientInterceptors(extra ...grpc.UnaryClientInterceptor) grpc.DialOption {
+	return grpc.WithChainUnaryInterceptor(append(transport.ClientUnaryInterceptors(), extra...)...)
+}

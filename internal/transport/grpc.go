@@ -42,6 +42,18 @@ func RegisterClientUnaryInterceptor(i grpc.UnaryClientInterceptor) {
 	}
 }
 
+// ClientUnaryInterceptors returns a copy of the registered client-side unary
+// interceptors, for connections dialled outside CreateClient.
+func ClientUnaryInterceptors() []grpc.UnaryClientInterceptor {
+	return append([]grpc.UnaryClientInterceptor(nil), clientUnaryInterceptors...)
+}
+
+// ResetClientUnaryInterceptorsForTest replaces the registry. Tests only --
+// production code registers once at startup and never resets.
+func ResetClientUnaryInterceptorsForTest(i []grpc.UnaryClientInterceptor) {
+	clientUnaryInterceptors = i
+}
+
 // retryServiceConfig enables transparent retries on transient failures.
 const retryServiceConfig = `{
 	"methodConfig": [{
