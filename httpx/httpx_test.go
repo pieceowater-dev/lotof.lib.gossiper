@@ -1,8 +1,10 @@
 package httpx
 
 import (
+	"bytes"
 	"io"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -135,5 +137,56 @@ func TestHealthRoutes(t *testing.T) {
 		if code != 200 || !strings.Contains(body, `"service":"lotof.test.gtw"`) {
 			t.Errorf("GET %s -> %d %s", p, code, body)
 		}
+	}
+}
+
+func TestFiberConfig(t *testing.T) {
+	cfg := FiberConfig()
+
+	// SSE and subscriptions hold a response open for minutes; a write
+	// deadline would cut them off mid-stream.
+	if cfg.WriteTimeout != 0 {
+		t.Fatalf("WriteTimeout must stay unset, got %s", cfg.WriteTimeout)
+	}
+	if cfg.ReadTimeout <= 0 {
+		t.Fatal("a request with no read deadline is a slow-loris invitation")
+	}
+	// The ALB recycles at 60s; the gateway should outlast it rather than
+	// close connections the balancer still considers usable.
+	if cfg.IdleTimeout <= cfg.ReadTimeout {
+		t.Fatalf("IdleTimeout %s should exceed ReadTimeout %s", cfg.IdleTimeout, cfg.ReadTimeout)
+	}
+	if cfg.BodyLimit != 16<<20 {
+		t.Fatalf("body limit should match the multipart transport's 16 MiB, got %d", cfg.BodyLimit)
+	}
+	if !cfg.DisableStartupMessage {
+		t.Fatal("the startup banner has no place in a JSON log")
+	}
+}
+
+func TestFiberConfig_AcceptsABodyUpToTheLimit(t *testing.T) {
+	app := fiber.New(FiberConfig())
+	app.Post("/upload", func(c *fiber.Ctx) error { return c.SendString(strconv.Itoa(len(c.Body()))) })
+
+	for _, size := range []int{1 << 20, 8 << 20, FiberBodyLimit - 1024} {
+		req := httptest.NewRequest("POST", "/upload", bytes.NewReader(make([]byte, size)))
+		resp, err := app.Test(req, 10_000)
+		if err != nil {
+			t.Fatalf("%d bytes: %v", size, err)
+		}
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("%d bytes was rejected with %d; the client allows 15 MB files", size, resp.StatusCode)
+		}
+	}
+
+	// Past the limit fasthttp refuses the body outright, which surfaces as a
+	// transport error here rather than a 413 response.
+	req := httptest.NewRequest("POST", "/upload", bytes.NewReader(make([]byte, FiberBodyLimit+(1<<20))))
+	resp, err := app.Test(req, 10_000)
+	if err == nil && resp.StatusCode != fiber.StatusRequestEntityTooLarge {
+		t.Fatalf("a body past the limit should be refused, got %d", resp.StatusCode)
+	}
+	if err != nil && !strings.Contains(err.Error(), "limit") {
+		t.Fatalf("unexpected failure for an oversized body: %v", err)
 	}
 }

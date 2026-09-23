@@ -6,6 +6,7 @@ package httpx
 import (
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -130,4 +131,41 @@ func RegisterHealthRoutes(app *fiber.App, serviceName string) {
 	app.Get("/health/ready", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok", "service": serviceName, "check": "readiness"})
 	})
+}
+
+const (
+	// fiberReadTimeout bounds how long one request may take to arrive --
+	// headers and body. It is the slow-loris guard; it matches the ALB's own
+	// 60s idle timeout so the gateway is never the surprising one.
+	fiberReadTimeout = 60 * time.Second
+	// fiberIdleTimeout bounds a kept-alive connection between requests. It
+	// is deliberately longer than the ALB's 60s, so the load balancer
+	// recycles connections and the gateway only cleans up what the ALB left.
+	fiberIdleTimeout = 75 * time.Second
+	// FiberBodyLimit is the largest request body a gateway accepts. Fiber's
+	// default is 4 MiB, which quietly rejected uploads before any handler
+	// ran -- while the GraphQL multipart transport was configured for 16 MiB
+	// and the web client allows 15 MB files (audit D6).
+	FiberBodyLimit = 16 << 20
+)
+
+// FiberConfig is the platform's HTTP server configuration.
+//
+// There is no WriteTimeout on purpose: SSE (atrace check-in and contacts
+// event streams) and GraphQL subscriptions hold a response open for minutes,
+// and fasthttp applies a write deadline to the whole response, so any value
+// here would cut them off mid-stream. The per-request budget is enforced
+// where it can be: a 60s deadline on every outgoing gRPC call, and the ALB's
+// own idle timeout in front.
+func FiberConfig() fiber.Config {
+	return fiber.Config{
+		DisableStartupMessage: true,
+		ReadTimeout:           fiberReadTimeout,
+		IdleTimeout:           fiberIdleTimeout,
+		BodyLimit:             FiberBodyLimit,
+		// Not StreamRequestBody: fasthttp does not apply the body limit to a
+		// streamed body, so turning it on quietly removes the cap this
+		// config exists to set (caught by the test below, which posted 17
+		// MiB successfully with streaming on).
+	}
 }
