@@ -8,12 +8,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/db"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/generic"
-	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/observability"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers"
 	grpcServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/grpc"
 	restServ "github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/servers/http/fiber"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/tenant"
 	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/transport"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/observability"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
@@ -30,7 +30,7 @@ type DatabaseType = db.DatabaseType
 
 // PostgresDB One of Supported database types.
 const (
-	PostgresDB   DatabaseType = db.PostgresDB
+	PostgresDB DatabaseType = db.PostgresDB
 )
 
 // NewDB initializes a new database connection.
@@ -208,7 +208,7 @@ type ObservabilityConfig = observability.Config
 
 // InitObservability sets up the OTLP tracer provider and a structured JSON logger.
 // Returns logger, tracer, shutdown func, and any init error.
-// On error fall back to slog.Default() and trace.NewNoopTracerProvider().Tracer("noop").
+// On error fall back to slog.Default() and noop.NewTracerProvider().Tracer("noop").
 func InitObservability(ctx context.Context, cfg ObservabilityConfig) (*slog.Logger, trace.Tracer, func(context.Context) error, error) {
 	return observability.Init(ctx, cfg)
 }

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 )
 
@@ -55,7 +55,7 @@ func TestInit_WithEndpoint(t *testing.T) {
 func TestFiberMiddleware_DoesNotLogAuthorization(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
-	tracer := trace.NewNoopTracerProvider().Tracer("test")
+	tracer := noop.NewTracerProvider().Tracer("test")
 
 	app := fiber.New()
 	app.Use(FiberMiddleware(logger, tracer))
@@ -88,7 +88,7 @@ func TestFiberMiddleware_SkipsSuccessfulHealthProbes(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 	app := fiber.New()
-	app.Use(FiberMiddleware(logger, trace.NewNoopTracerProvider().Tracer("test")))
+	app.Use(FiberMiddleware(logger, noop.NewTracerProvider().Tracer("test")))
 	app.Get("/health", func(c *fiber.Ctx) error { return c.SendString("ok") })
 	app.Get("/health/ready", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusServiceUnavailable) })
 	app.Get("/ping", func(c *fiber.Ctx) error { return c.SendString("pong") })
@@ -114,7 +114,7 @@ func TestFiberMiddleware_SkipsSuccessfulHealthProbes(t *testing.T) {
 func TestGRPCServerInterceptor_SkipsSuccessfulHealthChecks(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
-	icpt := GRPCServerInterceptor(logger, trace.NewNoopTracerProvider().Tracer("test"))
+	icpt := GRPCServerInterceptor(logger, noop.NewTracerProvider().Tracer("test"))
 	ok := func(context.Context, any) (any, error) { return "ok", nil }
 	fail := func(context.Context, any) (any, error) { return nil, errors.New("db down") }
 
