@@ -70,6 +70,7 @@ func (g *GRPCTransport) CreateClient(clientConstructor any) (any, error) {
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		ClientKeepalive(),
 	}
 	// Registered interceptors first (auth, tracing, ...), then the platform
 	// ones: a default deadline and read-only retries, innermost so every
