@@ -126,3 +126,40 @@ func TestInTx_PanicRollsBackAndPropagates(t *testing.T) {
 	}()
 	_ = InTx(context.Background(), db, func(context.Context) error { panic("boom") })
 }
+
+func TestInTxSchema_PinsOneTransactionForTheTenant(t *testing.T) {
+	session := newGormSession(t)
+	db := &schemaDB{tx: session}
+
+	var seen *gorm.DB
+	err := InTxSchema(context.Background(), db, "ns_demo", func(ctx context.Context) error {
+		seen, _ = TxFromContext(ctx)
+		// A nested unit of work must not open a second transaction.
+		return InTxSchema(ctx, db, "ns_demo", func(context.Context) error { return nil })
+	})
+	if err != nil {
+		t.Fatalf("InTxSchema: %v", err)
+	}
+	if db.schemaCalls != 1 {
+		t.Fatalf("expected one schema-scoped transaction, got %d", db.schemaCalls)
+	}
+	if seen != session {
+		t.Fatal("repositories must see the transaction the schema was pinned on")
+	}
+	if db.schema != "ns_demo" {
+		t.Fatalf("pinned to %q", db.schema)
+	}
+}
+
+type schemaDB struct {
+	Database
+	tx          *gorm.DB
+	schema      string
+	schemaCalls int
+}
+
+func (s *schemaDB) WithSchema(_ context.Context, schema string, fn func(tx *gorm.DB) error) error {
+	s.schemaCalls++
+	s.schema = schema
+	return fn(s.tx)
+}

@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/dbtx"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -154,6 +155,18 @@ func (p *Postgres) WithSchema(ctx context.Context, schema string, fn func(tx *go
 	if err != nil {
 		return fmt.Errorf("failed to switch schema: %w", err)
 	}
+	// A caller may already have opened a transaction (gossiper.InTxSchema,
+	// so several repositories share one unit of work). Joining it keeps the
+	// work atomic; opening a second one here would block on the first one's
+	// uncommitted rows. search_path is re-applied because that connection
+	// may have been pinned to a different schema, or to none.
+	if tx, ok := dbtx.From(ctx); ok {
+		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
+			return fmt.Errorf("failed to set search_path: %w", err)
+		}
+		return fn(tx)
+	}
+
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
 			return fmt.Errorf("failed to set search_path: %w", err)
@@ -171,6 +184,15 @@ func (p *Postgres) WithSchemaReadOnly(ctx context.Context, schema string, fn fun
 	if err != nil {
 		return fmt.Errorf("failed to switch schema: %w", err)
 	}
+	// Reads inside a caller's transaction have to run on that same
+	// connection, or they will not see its uncommitted writes.
+	if tx, ok := dbtx.From(ctx); ok {
+		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
+			return fmt.Errorf("failed to set search_path: %w", err)
+		}
+		return fn(tx)
+	}
+
 	return p.db.WithContext(ctx).Connection(func(tx *gorm.DB) error {
 		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
 			return fmt.Errorf("failed to set search_path: %w", err)

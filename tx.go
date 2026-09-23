@@ -4,21 +4,20 @@ import (
 	"context"
 
 	"gorm.io/gorm"
-)
 
-type txContextKey struct{}
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/internal/dbtx"
+)
 
 // ContextWithTx carries an open transaction on the context so repositories
 // below join it instead of opening their own connection. Prefer InTx, which
 // does this and the commit/rollback for you.
 func ContextWithTx(ctx context.Context, tx *gorm.DB) context.Context {
-	return context.WithValue(ctx, txContextKey{}, tx)
+	return dbtx.With(ctx, tx)
 }
 
 // TxFromContext returns the transaction InTx put on the context, if any.
 func TxFromContext(ctx context.Context) (*gorm.DB, bool) {
-	tx, ok := ctx.Value(txContextKey{}).(*gorm.DB)
-	return tx, ok && tx != nil
+	return dbtx.From(ctx)
 }
 
 // DBFromContext is what a repository method should use instead of
@@ -48,6 +47,24 @@ func InTx(ctx context.Context, db Database, fn func(ctx context.Context) error) 
 		return fn(ctx)
 	}
 	return db.WithTransaction(func(tx *gorm.DB) error {
+		return fn(ContextWithTx(ctx, tx))
+	})
+}
+
+// InTxSchema is InTx for a tenant-scoped service: one transaction pinned to
+// schema's search_path, which every repository call inside fn joins --
+// including the ones that go through WithSchema, since that now joins a
+// transaction already on the context instead of opening its own.
+//
+// Use it where one request writes through several repositories of the same
+// tenant (a sale and its stock movements, a booking and its lines); without
+// it each repository call is its own transaction and a failure part-way
+// through leaves the tenant's data half-written.
+func InTxSchema(ctx context.Context, db Database, schema string, fn func(ctx context.Context) error) error {
+	if _, already := TxFromContext(ctx); already {
+		return fn(ctx)
+	}
+	return db.WithSchema(ctx, schema, func(tx *gorm.DB) error {
 		return fn(ContextWithTx(ctx, tx))
 	})
 }
