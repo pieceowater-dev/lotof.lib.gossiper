@@ -285,14 +285,12 @@ func WithClientInterceptors(extra ...grpc.UnaryClientInterceptor) grpc.DialOptio
 	return grpc.WithChainUnaryInterceptor(chain...)
 }
 
-// DefaultDialOptions is what a hand-dialled connection (a pool, a one-off
-// client) needs to behave like one from CreateClient: WithClientInterceptors
-// plus client keepalive. Keepalive is why it exists -- without pings, a
-// connection to a pod that is already gone keeps being handed out and every
-// call on it fails with DeadlineExceeded instead of reconnecting, which is
-// exactly what a pool does after the service it talks to is restarted.
-// Transport credentials stay with the caller, since that is a decision worth
-// seeing at the dial site.
-func DefaultDialOptions(extra ...grpc.UnaryClientInterceptor) []grpc.DialOption {
-	return []grpc.DialOption{WithClientInterceptors(extra...), transport.ClientKeepalive()}
+// ClientKeepalive pings idle connections so the client notices a backend pod
+// that is already gone. Without it such a connection stays "ready" and every
+// call on it fails with DeadlineExceeded instead of reconnecting -- what a
+// gateway's pool does after the msvc behind it is restarted. Connections from
+// CreateClient have it already; put it next to WithClientInterceptors on
+// anything dialled by hand (pools, one-off clients).
+func ClientKeepalive() grpc.DialOption {
+	return transport.ClientKeepalive()
 }

@@ -28,19 +28,21 @@ func TestClientKeepaliveIsSlowerThanTheServerAccepts(t *testing.T) {
 	}
 }
 
-func TestDefaultDialOptionsConnectToAGossiperServer(t *testing.T) {
+func TestClientKeepaliveConnectsToAGossiperServer(t *testing.T) {
 	lis := bufconn.Listen(1024 * 1024)
 	server, health := NewGRPCServer()
 	health.SetServingStatus("", healthgrpc.HealthCheckResponse_SERVING)
 	go func() { _ = server.Serve(lis) }()
 	t.Cleanup(server.Stop)
 
-	opts := append(DefaultDialOptions(),
+	opts := []grpc.DialOption{
+		WithClientInterceptors(),
+		ClientKeepalive(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return lis.DialContext(ctx)
 		}),
-	)
+	}
 	conn, err := grpc.NewClient("passthrough:///bufnet", opts...)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
