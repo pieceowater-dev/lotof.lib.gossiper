@@ -67,11 +67,9 @@ func NewPostgres(dsn string, enableLogs bool, autoMigrateEntities []any) *Postgr
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
-	if autoMigrateEntities != nil {
-		for _, entity := range autoMigrateEntities {
-			if err := db.AutoMigrate(entity); err != nil {
-				log.Fatalf("failed to auto-migrate entity: %v", err)
-			}
+	for _, entity := range autoMigrateEntities {
+		if err := db.AutoMigrate(entity); err != nil {
+			log.Fatalf("failed to auto-migrate entity: %v", err)
 		}
 	}
 

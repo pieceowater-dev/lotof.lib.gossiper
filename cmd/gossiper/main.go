@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 const svcTemplate = `package svc
@@ -137,10 +138,12 @@ func generateModule(moduleName string) error {
 }
 
 func writeTemplate(path, tmpl, moduleName, rootModuleName string) error {
-	if err := os.MkdirAll(getDir(path), os.ModePerm); err != nil {
+	if err := os.MkdirAll(getDir(path), 0o750); err != nil {
 		return err
 	}
 
+	// #nosec G304 -- scaffolding a module the developer running this CLI named
+	// themselves; the path is their argument, not anything a request supplies.
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -149,13 +152,27 @@ func writeTemplate(path, tmpl, moduleName, rootModuleName string) error {
 
 	t := template.Must(template.New("file").Parse(tmpl))
 	return t.Execute(file, map[string]string{
-		"ModuleName":     strings.Title(moduleName),
+		"ModuleName":     exported(moduleName),
 		"moduleName":     strings.ToLower(moduleName),
 		"RootModuleName": rootModuleName,
 	})
 }
 
+// exported upper-cases the first letter of a module name so it can be used
+// as a Go identifier in the generated code. strings.Title did this until it
+// was deprecated over Unicode word boundaries it got wrong; a module name is
+// a single ASCII identifier, so the first rune is all there is to change.
+func exported(name string) string {
+	if name == "" {
+		return ""
+	}
+	r := []rune(name)
+	return string(unicode.ToUpper(r[0])) + string(r[1:])
+}
+
 func gitAdd(filePath string) error {
+	// #nosec G204 -- a fixed binary with the path passed as an argv entry, so
+	// there is no shell for a odd file name to escape into.
 	cmd := exec.Command("git", "add", filePath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to add file to git: %w", err)

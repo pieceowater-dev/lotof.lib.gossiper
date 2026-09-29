@@ -5,8 +5,73 @@ on:
     branches:
       - main
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Every one of the nineteen services builds against whatever this repo
+  # last tagged, so a bad tag here breaks all of them at once and there is
+  # no way to un-publish a Go module version. The same gates the services
+  # run therefore have to pass before a tag exists at all (audit I2).
+  checks:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache: false
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Check go.mod is tidy
+        run: |
+          go mod tidy
+          if ! git diff --exit-code --stat -- go.mod go.sum; then
+            echo "::error::go.mod/go.sum are not tidy -- run 'go mod tidy' and commit the result" >&2
+            exit 1
+          fi
+
+      - name: Install staticcheck
+        run: |
+          if [ ! -x "$(go env GOPATH)/bin/staticcheck" ]; then
+            go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          fi
+
+      - name: Lint
+        run: |
+          go vet ./...
+          "$(go env GOPATH)/bin/staticcheck" ./...
+
+      - name: Install gosec
+        run: |
+          if [ ! -x "$(go env GOPATH)/bin/gosec" ]; then
+            go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          fi
+
+      - name: Security scan
+        run: '"$(go env GOPATH)/bin/gosec" -exclude-generated -exclude=G115,G602 -quiet ./...'
+
+      - name: Install govulncheck
+        run: |
+          if [ ! -x "$(go env GOPATH)/bin/govulncheck" ]; then
+            go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          fi
+
+      - name: Vulnerability scan
+        run: "$(go env GOPATH)/bin/govulncheck ./..."
+
+      - name: Run tests
+        run: go test ./...
+
   tag:
+    needs: checks
     runs-on: ubuntu-latest
 
     steps:

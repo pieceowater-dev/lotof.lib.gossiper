@@ -50,6 +50,20 @@ func RequestHostname(c *fiber.Ctx) string {
 	return hostnameOf(c.Hostname())
 }
 
+// RequestIsSecure reports whether the browser reached this request over
+// HTTPS. Inside the cluster every pod is spoken to in plain HTTP, so the
+// pod's own connection says nothing; the ingress records the browser's
+// scheme in X-Forwarded-Proto, and that is what decides whether a cookie
+// this request sets may carry the Secure attribute. Getting it from the
+// request rather than from a config value means a local `go run` still
+// works without anyone remembering to unset a flag.
+func RequestIsSecure(c *fiber.Ctx) bool {
+	if proto := strings.TrimSpace(strings.Split(c.Get("X-Forwarded-Proto"), ",")[0]); proto != "" {
+		return strings.EqualFold(proto, "https")
+	}
+	return c.Secure()
+}
+
 func isSameHostOrigin(c *fiber.Ctx, origin string) bool {
 	if origin == "" {
 		return true

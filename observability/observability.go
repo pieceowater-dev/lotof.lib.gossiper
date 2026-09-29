@@ -2,9 +2,12 @@ package observability
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +96,20 @@ func Init(ctx context.Context, cfg Config) (*slog.Logger, trace.Tracer, func(con
 
 	shutdown := func(ctx context.Context) error { return tp.Shutdown(ctx) }
 	return logger, tp.Tracer(cfg.ServiceName), shutdown, nil
+}
+
+// NewRequestID returns a fresh correlation ID for a request that arrived
+// without one. Four gateways had grown the same time-plus-math/rand version
+// of this (audit F1/I2); the value ends up in logs that get correlated
+// across services, so collisions matter and a predictable generator is not
+// worth keeping. If the system has no entropy to give, a timestamp is still
+// better than an empty ID.
+func NewRequestID() string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 16)
+	}
+	return hex.EncodeToString(b[:])
 }
 
 // RequestID extracts the request ID from context.

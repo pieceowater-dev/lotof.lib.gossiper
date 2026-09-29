@@ -132,3 +132,17 @@ func TestGRPCServerInterceptor_SkipsSuccessfulHealthChecks(t *testing.T) {
 		t.Fatalf("ordinary calls must be logged exactly as before, got %q", buf.String())
 	}
 }
+
+func TestNewRequestID(t *testing.T) {
+	seen := make(map[string]bool, 1000)
+	for i := 0; i < 1000; i++ {
+		id := NewRequestID()
+		if id == "" {
+			t.Fatal("an empty request ID is useless for correlation")
+		}
+		if seen[id] {
+			t.Fatalf("request ID %q came back twice in 1000 draws", id)
+		}
+		seen[id] = true
+	}
+}

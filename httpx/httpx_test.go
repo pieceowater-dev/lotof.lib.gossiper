@@ -3,6 +3,7 @@ package httpx
 import (
 	"bytes"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
@@ -188,5 +189,37 @@ func TestFiberConfig_AcceptsABodyUpToTheLimit(t *testing.T) {
 	}
 	if err != nil && !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("unexpected failure for an oversized body: %v", err)
+	}
+}
+
+func TestRequestIsSecure(t *testing.T) {
+	for name, tc := range map[string]struct {
+		header string
+		want   bool
+	}{
+		"behind an https ingress":            {"https", true},
+		"behind a plain http ingress":        {"http", false},
+		"a proxy chain, browser used https":  {"https, http", true},
+		"an odd casing still counts":         {"HTTPS", true},
+		"no header at all, plain local http": {"", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			app := fiber.New()
+			var got bool
+			app.Get("/", func(c *fiber.Ctx) error {
+				got = RequestIsSecure(c)
+				return nil
+			})
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tc.header != "" {
+				req.Header.Set("X-Forwarded-Proto", tc.header)
+			}
+			if _, err := app.Test(req); err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
