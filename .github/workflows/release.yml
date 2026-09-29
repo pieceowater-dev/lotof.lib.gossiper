@@ -14,8 +14,13 @@ jobs:
   # last tagged, so a bad tag here breaks all of them at once and there is
   # no way to un-publish a Go module version. The same gates the services
   # run therefore have to pass before a tag exists at all (audit I2).
+  # ubuntu-latest, not the self-hosted runner the nineteen services use:
+  # this repository is public, and an organisation runner group refuses
+  # public repositories unless someone turns that off deliberately. Public
+  # repositories also get GitHub-hosted minutes for free, which is why the
+  # tag job below kept working when the paid minutes ran out.
   checks:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
