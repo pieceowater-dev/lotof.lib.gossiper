@@ -33,3 +33,8 @@ hub-users
 hub-namespaces
 capital-gtw
 capital-billing
+# Built binaries
+bin/
+/lotof.lib.gossiper
+/server
+*-race
