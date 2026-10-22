@@ -76,7 +76,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		redirect := q.Get("redirect_uri")
 		fail := func(e string) {
-			http.Redirect(w, r, ReturnURL(redirect, map[string]string{"error": e, "state": q.Get("state")}), http.StatusFound)
+			http.Redirect(w, r, ReturnURL(redirect, map[string]string{"error": e, "state": q.Get("state")}), http.StatusFound) // #nosec G710 -- the address is one the client registered, checked by CheckRequest above
 		}
 		if q.Get("response_type") != "code" {
 			fail("unsupported_response_type")
