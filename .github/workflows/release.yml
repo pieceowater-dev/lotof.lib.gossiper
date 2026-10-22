@@ -45,14 +45,19 @@ jobs:
 
       - name: Install staticcheck
         run: |
-          if [ ! -x "$(go env GOPATH)/bin/staticcheck" ]; then
-            go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
-          fi
+          # staticcheck v0.8.1 bundles an x/tools that cannot read Go 1.27.2's export data
+          # ("export data version 5 is greater than maximum supported version 4"); build it
+          # against a newer x/tools instead (same fix as the services' ci.yml).
+          tmp="$(mktemp -d)"
+          (cd "$tmp" && go mod init sc >/dev/null 2>&1 \
+            && GOFLAGS=-mod=mod go get honnef.co/go/tools@v0.8.1 golang.org/x/tools@v0.51.0 \
+            && GOFLAGS=-mod=mod go build -o "$(go env GOPATH)/bin/staticcheck-xt51" honnef.co/go/tools/cmd/staticcheck)
+          rm -rf "$tmp"
 
       - name: Lint
         run: |
           go vet ./...
-          "$(go env GOPATH)/bin/staticcheck" ./...
+          "$(go env GOPATH)/bin/staticcheck-xt51" ./...
 
       - name: Install gosec
         run: |
