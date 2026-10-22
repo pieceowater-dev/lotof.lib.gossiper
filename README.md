@@ -17,6 +17,43 @@ Features
 - Simplified database connection management
 - Modular and extendable design
 
+## MCP for AI clients (`mcpkit`)
+
+`github.com/pieceowater-dev/lotof.lib.gossiper/v2/mcpkit` is the shared half of an MCP endpoint (Claude, ChatGPT, ...):
+the HTTP handler over the official go-sdk, `lpt_...` key authentication through a `Resolver`, a brake on guessing keys per
+address, one log line per tool call, permission classes for tools (`Read`, `Write`, `Act`), gRPC errors as plain messages
+and a 401 that carries `resource_metadata`. The optional package `mcpkit/oauth` adds the sign-in server for AI clients
+(client registration, authorize -> your consent page, token with PKCE, sealed one-time codes); it asks you only for a `KeyIssuer`.
+
+How to plug MCP into another lota service (about 20 lines):
+
+```go
+cfg := &mcpkit.Config{
+    Name: "lota-menu", Instructions: "Manage a menu...",
+    MetadataURL: "https://lota.tools/api-menu/.well-known/oauth-protected-resource", // omit without oauth
+    Resolver: mcpkit.ResolverFunc(func(ctx context.Context, secret string) (*mcpkit.Principal, error) {
+        r, err := accessClient.ResolveToken(ctx, &pb.ResolveTokenRequest{Secret: secret})
+        if err != nil { return nil, err }          // identity down -> 503
+        if !r.Valid { return nil, nil }            // bad key -> 401, counted against the address
+        return &mcpkit.Principal{TokenID: r.TokenId, Namespace: r.Namespace, UserID: r.UserId, Scopes: toSet(r.Scopes)}, nil
+    }),
+    Register: func(srv *sdk.Server, p *mcpkit.Principal) {
+        mcpkit.AddTool(srv, p, mcpkit.Read, &sdk.Tool{Name: "list_items", Description: "List items."},
+            func(ctx context.Context, p *mcpkit.Principal, in struct{}) (listOut, error) {
+                res, err := menu.ListItems(withNamespace(ctx, p), &pb.ListItemsRequest{}) // gRPC errors become plain text
+                return toListOut(res), err
+            })
+    },
+}
+mux.Handle("/mcp", cfg.Handler())
+```
+
+A tool registered with `mcpkit.Write` is refused for a read-only key, and `mcpkit.Act` (scope `publish`) for anything
+without that scope, before your handler runs. Tests can build the server for one principal with `cfg.NewServer(p)` and call
+every tool over `sdk.NewInMemoryTransports()` to prove each one checks its permission (see `mcpkit_test.go`).
+For the sign-in flow: `oa := oauth.New(secret, publicURL, consentPageURL)`, mount `oa.Handler()` at `/.well-known/*` and
+`/oauth/*`, and in the consent page's backend call `oa.Approve(ctx, yourKeyIssuer, req)` / `oa.Deny(...)`.
+
 ## Usage Examples
 
 ### Server Management
