@@ -27,6 +27,9 @@ import (
 	"time"
 )
 
+// KeyLifetime is how long a key issued through the flow lasts; the token response states it as expires_in.
+const KeyLifetime = 90 * 24 * time.Hour
+
 const (
 	codeTTL     = 2 * time.Minute
 	maxRedirect = 5
@@ -212,23 +215,25 @@ func (s *Server) Exchange(code, clientID, redirect, verifier string) (secret, sc
 	if json.Unmarshal(plain, &p) != nil || time.Now().Unix() > p.Expires {
 		return "", "", ErrBadGrant
 	}
-	sum := sha256.Sum256([]byte(verifier))
-	if p.ClientID != clientID || p.Redirect != redirect || verifier == "" || len(verifier) < 43 || len(verifier) > 128 ||
-		subtle.ConstantTimeCompare([]byte(enc.EncodeToString(sum[:])), []byte(p.Challenge)) != 1 {
-		return "", "", ErrBadGrant
-	}
+	// A code is spent by the first attempt, right or wrong: a guessed verifier must not get a second try.
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	now := time.Now()
 	for k, exp := range s.used {
 		if now.After(exp) {
 			delete(s.used, k)
 		}
 	}
-	if _, spent := s.used[p.Nonce]; spent {
+	_, spent := s.used[p.Nonce]
+	s.used[p.Nonce] = time.Unix(p.Expires, 0).Add(time.Minute)
+	s.mu.Unlock()
+	if spent {
 		return "", "", ErrBadGrant
 	}
-	s.used[p.Nonce] = time.Unix(p.Expires, 0).Add(time.Minute)
+	sum := sha256.Sum256([]byte(verifier))
+	if p.ClientID != clientID || p.Redirect != redirect || verifier == "" || len(verifier) < 43 || len(verifier) > 128 ||
+		subtle.ConstantTimeCompare([]byte(enc.EncodeToString(sum[:])), []byte(p.Challenge)) != 1 {
+		return "", "", ErrBadGrant
+	}
 	return p.Secret, p.Scope, nil
 }
 
@@ -279,7 +284,7 @@ func (s *Server) Approve(ctx context.Context, iss KeyIssuer, in ApproveRequest) 
 	if in.Challenge == "" {
 		return "", errors.New("code challenge is required")
 	}
-	secret, err := iss.IssueKey(ctx, "AI: "+cl.Name, in.Scopes, in.ResourceID, time.Now().Add(90*24*time.Hour))
+	secret, err := iss.IssueKey(ctx, "AI: "+cl.Name, in.Scopes, in.ResourceID, time.Now().Add(KeyLifetime))
 	if err != nil {
 		return "", err
 	}

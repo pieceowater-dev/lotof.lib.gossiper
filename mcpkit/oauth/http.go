@@ -113,7 +113,7 @@ func (s *Server) Handler() http.Handler {
 			oauthErr(w, 400, "invalid_grant", "the code is wrong, expired or already used")
 			return
 		}
-		writeJSON(w, 200, map[string]any{"access_token": secret, "token_type": "Bearer", "scope": strings.TrimSpace(scope)})
+		writeJSON(w, 200, map[string]any{"access_token": secret, "token_type": "Bearer", "expires_in": int(KeyLifetime.Seconds()), "scope": strings.TrimSpace(scope)})
 	})
 	// The ingress sends /api-pages/... and the fasthttp adapter keeps that prefix in the request address;
 	// the patterns above are written without it.

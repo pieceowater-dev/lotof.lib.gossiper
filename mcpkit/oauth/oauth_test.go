@@ -103,10 +103,18 @@ func TestFlow(t *testing.T) {
 	if w := token(code, "wrong-verifier-wrong-verifier-wrong-verifier-1", redir); w.Code != 400 {
 		t.Fatalf("a wrong verifier must fail: %d", w.Code)
 	}
+	if w := token(code, verifier, redir); w.Code != 400 {
+		t.Fatalf("a failed attempt burns the code, even with the right verifier afterwards: %d", w.Code)
+	}
+	code, _ = s.Seal("lpt_secretkey", reg.ClientID, redir, pkce(verifier), "read write")
 	if w := token(code, verifier, "https://claude.ai/other"); w.Code != 400 {
 		t.Fatalf("a different redirect must fail: %d", w.Code)
 	}
+	code, _ = s.Seal("lpt_secretkey", reg.ClientID, redir, pkce(verifier), "read write")
 	w := token(code, verifier, redir)
+	if !strings.Contains(w.Body.String(), `"expires_in":7776000`) {
+		t.Fatalf("the token states its lifetime (90 days): %s", w.Body)
+	}
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"access_token":"lpt_secretkey"`) {
 		t.Fatalf("exchange: %d %s", w.Code, w.Body)
 	}
