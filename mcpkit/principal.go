@@ -25,6 +25,7 @@ type Principal struct {
 	Scopes    map[string]bool
 	SiteID    string // "" = any site (resource) of the namespace; otherwise the key is confined to this one
 	Owner     bool   // the key was issued by the namespace owner
+	Role      string // optional: the creator's role in the product (e.g. a staff role), set by the gateway that resolves the key
 }
 
 // Need returns an error unless the key carries the scope.
