@@ -203,3 +203,18 @@ func TestCatalogHandlerIsPublicJSON(t *testing.T) {
 		t.Fatalf("only GET is served, got %d", rec.Code)
 	}
 }
+
+func TestAnnotationsAndTitleForDirectories(t *testing.T) {
+	if got := HumanTitle("get_publish_overview"); got != "Get publish overview" {
+		t.Fatalf("title %q", got)
+	}
+	for _, c := range []Class{Read, Write, Act} {
+		a := Annotations(c)
+		if a.DestructiveHint == nil || a.OpenWorldHint == nil {
+			t.Fatalf("class %s: destructiveHint and openWorldHint must be explicit", c)
+		}
+	}
+	if classOf(Annotations(Read)) != string(Read) || classOf(Annotations(Write)) != string(Write) || classOf(Annotations(Act)) != string(Act) {
+		t.Fatal("classOf must read every class back")
+	}
+}
