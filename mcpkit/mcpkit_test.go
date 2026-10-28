@@ -171,3 +171,35 @@ func TestClientAddrTrustsOnlyTheLastHop(t *testing.T) {
 		t.Fatal(ClientAddr(r))
 	}
 }
+
+func TestCatalogListsTheRegisteredTools(t *testing.T) {
+	c := testConfig(ResolverFunc(func(context.Context, string) (*Principal, error) { return nil, nil }))
+	cat, err := c.Catalog(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, tl := range cat.Tools {
+		got[tl.Name] = tl.Class
+	}
+	if got["look"] != "read" || got["edit"] != "write" || got["go_live"] != "publish" {
+		t.Fatalf("the catalog must list every tool with its class, got %v", got)
+	}
+	if cat.Tools[0].Class != "read" {
+		t.Fatalf("read tools come first, got %v", cat.Tools)
+	}
+}
+
+func TestCatalogHandlerIsPublicJSON(t *testing.T) {
+	c := testConfig(ResolverFunc(func(context.Context, string) (*Principal, error) { return nil, nil }))
+	rec := httptest.NewRecorder()
+	c.CatalogHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp/tools", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"name":"look"`) {
+		t.Fatalf("expected the public catalog without a key, got %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	c.CatalogHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/tools", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("only GET is served, got %d", rec.Code)
+	}
+}
