@@ -166,3 +166,16 @@ func TestApproveSealsTheIssuedKey(t *testing.T) {
 		t.Fatal(d, err)
 	}
 }
+
+func TestConsentURLKeepsTheQueryOfTheConfiguredAddress(t *testing.T) {
+	s := New("secret", "https://x.test/api-tasks", "https://x.test/mcp/authorize?product=issues")
+	got := s.ConsentURL(url.Values{"client_id": {"c"}, "scope": {"read write"}})
+	u, err := url.Parse(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	if q.Get("product") != "issues" || q.Get("client_id") != "c" || q.Get("scope") != "read write" {
+		t.Fatalf("the consent address must keep product and add the request, got %s", got)
+	}
+}

@@ -242,7 +242,12 @@ func (s *Server) Exchange(code, clientID, redirect, verifier string) (secret, sc
 // ConsentURL is the web page for an authorization request.
 func (s *Server) ConsentURL(q url.Values) string {
 	u, _ := url.Parse(s.consentURL)
-	u.RawQuery = q.Encode()
+	// keep what the configured address already carries (for example ?product=issues): the request parameters are added to it
+	merged := u.Query()
+	for k, v := range q {
+		merged[k] = v
+	}
+	u.RawQuery = merged.Encode()
 	return u.String()
 }
 
