@@ -2,8 +2,10 @@ package mcpkit
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -144,7 +146,7 @@ func logCalls(srv *sdk.Server, log *slog.Logger, p *Principal) {
 				name = cr.Params.Name
 			}
 			start := time.Now()
-			res, err := next(ctx, method, req)
+			res, err := safeCall(ctx, log, name, next, method, req)
 			failed := err != nil
 			if cr, ok := res.(*sdk.CallToolResult); ok && cr != nil && cr.IsError {
 				failed = true
@@ -154,4 +156,21 @@ func logCalls(srv *sdk.Server, log *slog.Logger, p *Principal) {
 			return res, err
 		}
 	})
+}
+
+// safeCall runs a tool call and turns a panic inside it into an error result. The call runs on a goroutine of the MCP
+// library that nothing else recovers: one nil pointer or a missing request context in any tool would end the whole
+// gateway process, and every other person connected to it with it.
+func safeCall(ctx context.Context, log *slog.Logger, name string, next sdk.MethodHandler, method string, req sdk.Request) (res sdk.Result, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Error("mcp tool panic", slog.String("tool", name), slog.Any("panic", rec), slog.String("stack", string(debug.Stack())))
+			res = &sdk.CallToolResult{
+				IsError: true,
+				Content: []sdk.Content{&sdk.TextContent{Text: fmt.Sprintf("internal error in %s: the call failed on the server (it has been logged)", name)}},
+			}
+			err = nil
+		}
+	}()
+	return next(ctx, method, req)
 }

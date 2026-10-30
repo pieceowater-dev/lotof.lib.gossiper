@@ -218,3 +218,17 @@ func TestAnnotationsAndTitleForDirectories(t *testing.T) {
 		t.Fatal("classOf must read every class back")
 	}
 }
+
+func TestPanicInToolDoesNotEndTheProcess(t *testing.T) {
+	c := &Config{Name: "test", Resolver: ResolverFunc(func(context.Context, string) (*Principal, error) { return nil, nil }),
+		Register: func(srv *sdk.Server, p *Principal) {
+			AddTool(srv, p, Read, &sdk.Tool{Name: "boom", Description: "r"}, func(_ context.Context, _ *Principal, _ in) (out, error) {
+				panic("missing operation context")
+			})
+		},
+	}
+	msg, isErr := callTool(t, c, &Principal{Scopes: map[string]bool{"read": true}}, "boom")
+	if !isErr || !strings.Contains(msg, "internal error in boom") {
+		t.Fatalf("a panic must come back as an error result, got %q (isError=%v)", msg, isErr)
+	}
+}
