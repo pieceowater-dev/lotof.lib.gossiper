@@ -3,6 +3,7 @@ package gossiper
 import (
 	"context"
 	"log/slog"
+	"os"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -29,6 +30,17 @@ func ServiceAuthClientInterceptor(secret string) grpc.UnaryClientInterceptor {
 	}
 }
 
+// ServiceAuthSecretRequired reports whether an empty service-auth secret is a
+// startup error for the given ENVIRONMENT value. Development (or no value at
+// all, the local default) may run without a secret; anything else may not.
+func ServiceAuthSecretRequired(environment string) bool {
+	switch strings.ToLower(strings.TrimSpace(environment)) {
+	case "", "dev", "development", "local", "test":
+		return false
+	}
+	return true
+}
+
 // Service-auth modes for ServiceAuthServerInterceptorWithMode.
 const (
 	// ServiceAuthEnforce rejects a call without a valid token with
@@ -51,8 +63,9 @@ func ServiceAuthServerInterceptor(secret string, exemptPrefixes ...string) grpc.
 // ServiceAuthServerInterceptorWithMode checks the ServiceAuthMetadataKey
 // metadata against `secret`:
 //
-//   - `secret` empty            -> no-op (allow all); lets the interceptor be
-//     deployed before the secret is configured.
+//   - `secret` empty            -> no-op (allow all) in development only; outside
+//     it the process refuses to start, so a lost or mistyped secret can never
+//     silently switch the check off (see ServiceAuthSecretRequired).
 //   - method in `exemptPrefixes` -> allowed without a token (health checks,
 //     reflection, any genuinely public RPC). Matched by prefix on the full
 //     method string, e.g. "/grpc.health.v1.Health/".
@@ -60,6 +73,10 @@ func ServiceAuthServerInterceptor(secret string, exemptPrefixes ...string) grpc.
 //     logged and allowed (ServiceAuthReport). Any other mode value, including
 //     "", means enforce -- a typo must not silently turn the check off.
 func ServiceAuthServerInterceptorWithMode(secret, mode string, exemptPrefixes ...string) grpc.UnaryServerInterceptor {
+	if secret == "" && ServiceAuthSecretRequired(os.Getenv("ENVIRONMENT")) {
+		slog.Error("refusing to start: SERVICE_AUTH_SECRET is empty, so service-to-service auth would be switched off")
+		os.Exit(1)
+	}
 	report := mode == ServiceAuthReport
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if secret == "" {

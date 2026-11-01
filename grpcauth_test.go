@@ -149,3 +149,11 @@ func TestWithClientInterceptors_AppliesRegisteredOnes(t *testing.T) {
 		t.Fatalf("WithClientInterceptors must attach the registered token, got %v", err)
 	}
 }
+
+func TestServiceAuthSecretRequired(t *testing.T) {
+	for env, want := range map[string]bool{"": false, "development": false, "Dev": false, "local": false, "test": false, "production": true, "prod": true, "staging": true} {
+		if got := ServiceAuthSecretRequired(env); got != want {
+			t.Errorf("%q: got %v, want %v", env, got, want)
+		}
+	}
+}
