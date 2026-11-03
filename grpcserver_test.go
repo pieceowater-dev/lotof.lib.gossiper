@@ -86,12 +86,22 @@ func TestNewGRPCServer_RecoversPanicsFromInterceptors(t *testing.T) {
 	}
 }
 
-func TestNewGRPCServer_RegistersHealthAndReflection(t *testing.T) {
+func TestNewGRPCServer_RegistersHealthButNotReflectionByDefault(t *testing.T) {
+	t.Setenv(GRPCReflectionEnv, "")
 	server, _ := NewGRPCServer()
 	info := server.GetServiceInfo()
-	for _, name := range []string{"grpc.health.v1.Health", "grpc.reflection.v1.ServerReflection"} {
-		if _, ok := info[name]; !ok {
-			t.Fatalf("expected %s to be registered, got %v", name, info)
-		}
+	if _, ok := info["grpc.health.v1.Health"]; !ok {
+		t.Fatalf("expected health service, got %v", info)
+	}
+	if _, ok := info["grpc.reflection.v1.ServerReflection"]; ok {
+		t.Fatalf("reflection must be off by default, got %v", info)
+	}
+}
+
+func TestNewGRPCServer_ReflectionOnWithFlag(t *testing.T) {
+	t.Setenv(GRPCReflectionEnv, "true")
+	server, _ := NewGRPCServer()
+	if _, ok := server.GetServiceInfo()["grpc.reflection.v1.ServerReflection"]; !ok {
+		t.Fatal("reflection expected with GRPC_REFLECTION_ENABLED=true")
 	}
 }

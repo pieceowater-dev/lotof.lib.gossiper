@@ -53,13 +53,22 @@ func TestTenantDataRoundTrip(t *testing.T) {
 	}
 }
 
+func TestData_ToTenant_PasswordWithColon(t *testing.T) {
+	got, err := data("user:pa:ss:wd").toTenant("db")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.username != "user" || got.password != "pa:ss:wd" {
+		t.Errorf("got %+v", got)
+	}
+}
+
 func TestData_ToTenant_InvalidFormat(t *testing.T) {
 	tests := []struct {
 		name string
 		td   data
 	}{
 		{name: "missing colon", td: data("nocolonhere")},
-		{name: "too many parts", td: data("a:b:c")},
 		{name: "empty", td: data("")},
 	}
 

@@ -48,7 +48,7 @@ type tenant struct {
 
 // ToTenant converts TenantData back to a tenant
 func (td data) toTenant(database string) (tenant, error) {
-	parts := strings.Split(string(td), ":")
+	parts := strings.SplitN(string(td), ":", 2)
 	if len(parts) != 2 {
 		return tenant{}, errors.New("invalid tenant data format")
 	}
