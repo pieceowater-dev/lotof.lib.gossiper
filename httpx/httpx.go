@@ -177,6 +177,11 @@ func FiberConfig() fiber.Config {
 		ReadTimeout:           fiberReadTimeout,
 		IdleTimeout:           fiberIdleTimeout,
 		BodyLimit:             FiberBodyLimit,
+		// c.Get and friends otherwise return strings that alias fasthttp's
+		// reusable buffers. Forwarded as gRPC metadata they get overwritten
+		// while the transport is still encoding them, which corrupts the
+		// hpack table and panics ("id <= evictCount").
+		Immutable: true,
 		// Not StreamRequestBody: fasthttp does not apply the body limit to a
 		// streamed body, so turning it on quietly removes the cap this
 		// config exists to set (caught by the test below, which posted 17
