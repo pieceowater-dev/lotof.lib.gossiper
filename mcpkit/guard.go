@@ -1,12 +1,12 @@
 package mcpkit
 
 import (
-	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/pieceowater-dev/lotof.lib.gossiper/v2/httpx"
 )
 
 // Guard keeps small in-memory counters of failed sign-ins per address (per replica). It is the only brake in front
@@ -63,19 +63,10 @@ func (g *Guard) Fail(addr string, now time.Time) {
 }
 
 // ClientAddr is the caller's address. Behind a load balancer the last X-Forwarded-For entry is the one the
-// balancer itself appended; earlier entries are client-supplied and not trusted.
+// balancer itself appended; earlier entries are client-supplied and not trusted, and the header is only
+// believed when the direct peer is a proxy on a private address (see httpx.ClientIPFromRequest).
 func ClientAddr(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.Split(xff, ",")
-		if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
-			return ip
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+	return httpx.ClientIPFromRequest(r)
 }
 
 // TooMany answers an address that is refused because of too many failed sign-ins.

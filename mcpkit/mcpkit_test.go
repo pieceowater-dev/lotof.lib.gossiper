@@ -166,8 +166,18 @@ func TestGuard(t *testing.T) {
 
 func TestClientAddrTrustsOnlyTheLastHop(t *testing.T) {
 	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "10.1.2.3:4444"
 	r.Header.Set("X-Forwarded-For", "6.6.6.6, 10.0.0.1")
 	if ClientAddr(r) != "10.0.0.1" {
+		t.Fatal(ClientAddr(r))
+	}
+}
+
+func TestClientAddrIgnoresForwardedForFromPublicPeer(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "203.0.113.9:4444"
+	r.Header.Set("X-Forwarded-For", "10.0.0.1")
+	if ClientAddr(r) != "203.0.113.9" {
 		t.Fatal(ClientAddr(r))
 	}
 }

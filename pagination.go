@@ -47,3 +47,12 @@ func ClampOffset[T integer](offset T) T {
 	}
 	return offset
 }
+
+// PageLimitOffset turns a 1-based page and a page length into GORM
+// limit/offset: the length is clamped to [1, MaxPageLength] (zero means
+// DefaultPageLength) and a page below 1 is page 1.
+func PageLimitOffset[T integer](page, length T) (limit, offset int) {
+	limit = int(ClampPageLength(length))
+	offset = (int(ClampPage(page)) - 1) * limit
+	return limit, offset
+}

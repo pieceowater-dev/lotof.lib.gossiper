@@ -147,6 +147,17 @@ func RegisterHealthRoutes(app *fiber.App, serviceName string) {
 	})
 }
 
+// MountHealth wires the health routes every gateway exposes: /health,
+// /health/live, /health/ready and, when root is true, "/" (the load balancer's
+// default health-check path). Pass root=false when something else, such as
+// the GraphQL playground in development, is served on "/".
+func MountHealth(app *fiber.App, serviceName string, root bool) {
+	RegisterHealthRoutes(app, serviceName)
+	if root {
+		app.Get("/", HealthHandler(serviceName))
+	}
+}
+
 const (
 	// fiberReadTimeout bounds how long one request may take to arrive --
 	// headers and body. It is the slow-loris guard; it matches the ALB's own

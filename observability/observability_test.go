@@ -146,3 +146,14 @@ func TestNewRequestID(t *testing.T) {
 		seen[id] = true
 	}
 }
+
+func TestParseLevel(t *testing.T) {
+	for in, want := range map[string]slog.Level{
+		"debug": slog.LevelDebug, "DEBUG": slog.LevelDebug, "warn": slog.LevelWarn, "warning": slog.LevelWarn,
+		"error": slog.LevelError, "info": slog.LevelInfo, "": slog.LevelInfo, "weird": slog.LevelInfo, " debug ": slog.LevelDebug,
+	} {
+		if got := ParseLevel(in); got != want {
+			t.Errorf("ParseLevel(%q) = %v, want %v", in, got, want)
+		}
+	}
+}

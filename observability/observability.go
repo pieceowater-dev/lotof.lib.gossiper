@@ -433,3 +433,18 @@ func normalizeOTLPEndpoint(endpoint string) string {
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 	return strings.TrimSuffix(endpoint, "/")
 }
+
+// ParseLevel maps a LOG_LEVEL string ("debug", "warn"/"warning", "error";
+// anything else is info) to a slog level.
+func ParseLevel(level string) slog.Level {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
