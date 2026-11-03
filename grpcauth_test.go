@@ -157,3 +157,27 @@ func TestServiceAuthSecretRequired(t *testing.T) {
 		}
 	}
 }
+
+func TestSecretEnv(t *testing.T) {
+	env := map[string]string{}
+	get := func(k string) string { return env[k] }
+	exited := 0
+	exit := func(int) { exited++ }
+
+	env["ENVIRONMENT"] = "production"
+	env["X_SECRET"] = "value"
+	if got := secretEnv("X_SECRET", get, exit); got != "value" || exited != 0 {
+		t.Fatalf("a set secret must be returned, got %q exited=%d", got, exited)
+	}
+	secretEnv("MISSING", get, exit)
+	if exited != 1 {
+		t.Fatal("an empty secret outside development must stop the service")
+	}
+	env["ENVIRONMENT"] = "development"
+	secretEnv("MISSING", get, exit)
+	delete(env, "ENVIRONMENT")
+	secretEnv("MISSING", get, exit)
+	if exited != 1 {
+		t.Fatal("an empty secret in development (or with no ENVIRONMENT) must be allowed")
+	}
+}

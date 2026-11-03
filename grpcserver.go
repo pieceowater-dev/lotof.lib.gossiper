@@ -57,6 +57,8 @@ func grpcReflectionEnabled() bool {
 //   - RecoveryUnaryServerInterceptor as the outermost interceptor, followed by
 //     `interceptors` in the given order -- a panic anywhere in the chain or
 //     the handler becomes codes.Internal instead of killing the process;
+//   - ErrorSanitizer (unary and stream) right after it: a non-status error
+//     becomes a bare codes.Internal and is logged, status errors pass as is;
 //   - the standard gRPC health service, starting NOT_SERVING -- the caller
 //     flips it to SERVING once the service has finished starting;
 //   - MaxRecvMsgSize 8MB and MaxConcurrentStreams 256;
@@ -64,7 +66,7 @@ func grpcReflectionEnabled() bool {
 //
 // Register the service's own handlers on the returned server as usual.
 func NewGRPCServer(interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, *health.Server) {
-	chain := append([]grpc.UnaryServerInterceptor{RecoveryUnaryServerInterceptor()}, interceptors...)
+	chain := append([]grpc.UnaryServerInterceptor{RecoveryUnaryServerInterceptor(), ErrorSanitizerUnaryServerInterceptor()}, interceptors...)
 
 	server := grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -82,6 +84,7 @@ func NewGRPCServer(interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, *
 		grpc.MaxRecvMsgSize(grpcServerMaxRecvMsgSize),
 		grpc.MaxConcurrentStreams(grpcServerMaxConcurrentStreams),
 		grpc.ChainUnaryInterceptor(chain...),
+		grpc.ChainStreamInterceptor(ErrorSanitizerStreamServerInterceptor()),
 	)
 
 	healthServer := health.NewServer()

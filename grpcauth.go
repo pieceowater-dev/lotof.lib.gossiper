@@ -127,3 +127,23 @@ func subtleConstEq(a, b string) bool {
 	}
 	return v == 0
 }
+
+// SecretEnv reads a secret-bearing environment variable (APP_BUNDLE_SECRET,
+// JWT_SECRET_KEY, a DSN with a password, ...). There is deliberately no
+// fallback value: a default compiled into the binary is a credential
+// everyone who can read the repository knows. An empty value is accepted in
+// development only (see ServiceAuthSecretRequired); anywhere else the process
+// stops with an error naming the variable (never its value).
+func SecretEnv(key string) string {
+	return secretEnv(key, os.Getenv, os.Exit)
+}
+
+func secretEnv(key string, getenv func(string) string, exit func(int)) string {
+	value := getenv(key)
+	if value == "" && ServiceAuthSecretRequired(getenv("ENVIRONMENT")) {
+		slog.Error("refusing to start: a required secret is not set", slog.String("variable", key),
+			slog.String("hint", "set it in the service's Secret; empty values are allowed only when ENVIRONMENT=development"))
+		exit(1)
+	}
+	return value
+}
