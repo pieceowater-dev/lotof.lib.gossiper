@@ -318,6 +318,17 @@ func (m *Manager) ConfigTenants() {
 		t := tenants[i]
 		log.Printf("[ConfigTenants] [%d/%d] Processing namespace: '%s'", i+1, count, t.Namespace)
 
+		// A tenant that is already at the target version is only registered with this pod. Running
+		// AutoMigrate over it again flips its status to "running" for the whole migration, and the
+		// readiness gate turns every request for that tenant into "temporarily unavailable" --
+		// every warmup pass, for every tenant, for nothing.
+		if ready, _, _, statusErr := m.Status(ctx, database, t.Namespace); statusErr == nil && ready {
+			if m.SyncTenant(database, &t) {
+				log.Printf("[ConfigTenants] Namespace '%s' is already at the target version, not migrating", t.Namespace)
+				continue
+			}
+		}
+
 		err := m.MigrateTenant(ctx, database, &t, func(ctx context.Context, namespace string) error {
 			return m.MigrateSchema(ctx, database, namespace, nil, nil)
 		})

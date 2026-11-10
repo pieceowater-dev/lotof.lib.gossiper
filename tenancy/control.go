@@ -3,6 +3,7 @@ package tenancy
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"sync"
 	"time"
@@ -177,14 +178,24 @@ func (c *Control) Migrate(ctx context.Context, namespace string, steps ...func(c
 			namespace, nextRetryAt.UTC().Format(time.RFC3339))
 	}
 
-	locked, err := c.tryLock(ctx, namespace)
+	lockConn, err := c.tryLock(ctx, namespace)
 	if err != nil {
 		return err
 	}
-	if !locked {
+	if lockConn == nil {
+		// Somebody else is migrating this tenant right now. Waiting for them beats failing the
+		// caller (a request that just arrived for a new tenant): if they finish the job there is
+		// nothing left to do.
+		done, waitErr := c.waitForOther(ctx, namespace)
+		if waitErr != nil {
+			return waitErr
+		}
+		if done {
+			return nil
+		}
 		return fmt.Errorf("tenant migration is already running for namespace %q", namespace)
 	}
-	defer c.unlock(ctx, namespace)
+	defer c.unlock(ctx, lockConn, namespace)
 
 	started := time.Now().UTC()
 	if err := c.record(ctx, namespace, "", "running", failureCount, nil, &started, nil, nil); err != nil {
@@ -208,6 +219,37 @@ func (c *Control) Migrate(ctx context.Context, namespace string, steps ...func(c
 	return c.record(ctx, namespace, c.target(), "done", 0, nil, &started, &finished, nil)
 }
 
+// lockWaitTimeout and lockWaitPoll bound how long Migrate waits for another migration of the same tenant.
+const (
+	lockWaitTimeout = 25 * time.Second
+	lockWaitPoll    = 500 * time.Millisecond
+)
+
+// waitForOther polls until the migration running elsewhere has brought the tenant to the target
+// version (true), or the wait runs out (false).
+func (c *Control) waitForOther(ctx context.Context, namespace string) (bool, error) {
+	deadline := time.NewTimer(lockWaitTimeout)
+	defer deadline.Stop()
+	tick := time.NewTicker(lockWaitPoll)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-deadline.C:
+			return false, nil
+		case <-tick.C:
+			status, applied, err := c.Info(ctx, namespace)
+			if err != nil {
+				return false, err
+			}
+			if status == "done" && applied != "" && applied == c.target() {
+				return true, nil
+			}
+		}
+	}
+}
+
 func (c *Control) failureState(ctx context.Context, namespace string) (int, *time.Time, error) {
 	var count int
 	var next sql.NullTime
@@ -228,24 +270,38 @@ func (c *Control) failureState(ctx context.Context, namespace string) (int, *tim
 	return count, nil, nil
 }
 
-func (c *Control) tryLock(ctx context.Context, namespace string) (bool, error) {
-	var locked bool
-	err := c.db.GetDB().WithContext(ctx).
-		Raw("SELECT pg_try_advisory_lock(hashtext(?), hashtext(?))", c.ServiceName, namespace).
-		Row().Scan(&locked)
+// tryLock takes the advisory lock on a connection of its own. The lock belongs to the Postgres
+// session, so taking it through the pool and releasing it through the pool could hit two
+// different connections: the unlock would do nothing and the lock would stay held until that
+// connection died, wedging the tenant ("migration is already running") for good.
+func (c *Control) tryLock(ctx context.Context, namespace string) (*sql.Conn, error) {
+	sqlDB, err := c.db.GetDB().DB()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return locked, nil
+	conn, err := sqlDB.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var locked bool
+	if err := conn.QueryRowContext(ctx, "SELECT pg_try_advisory_lock(hashtext($1), hashtext($2))", c.ServiceName, namespace).Scan(&locked); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	if !locked {
+		_ = conn.Close()
+		return nil, nil
+	}
+	return conn, nil
 }
 
-func (c *Control) unlock(ctx context.Context, namespace string) {
-	if err := c.db.GetDB().WithContext(ctx).
-		Exec("SELECT pg_advisory_unlock(hashtext(?), hashtext(?))", c.ServiceName, namespace).Error; err != nil {
-		// Losing the unlock is not fatal: the lock is session-scoped and
-		// goes when the connection does.
-		_ = err
+func (c *Control) unlock(ctx context.Context, conn *sql.Conn, namespace string) {
+	// The session goes back to the pool afterwards, so an unlock that failed must not leave the
+	// lock behind: closing a connection that cannot unlock discards the session instead.
+	if _, err := conn.ExecContext(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock(hashtext($1), hashtext($2))", c.ServiceName, namespace); err != nil {
+		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
 	}
+	_ = conn.Close()
 }
 
 func (c *Control) record(ctx context.Context, namespace, appliedVersion, status string, failureCount int, nextRetryAt, startedAt, finishedAt *time.Time, errText *string) error {
