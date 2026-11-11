@@ -161,3 +161,21 @@ func TestNewWithoutBucketIsNil(t *testing.T) {
 		t.Fatal("no bucket means no store")
 	}
 }
+
+func TestVideoIsAcceptedOnlyWhenAsked(t *testing.T) {
+	mp4 := append([]byte{0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'm', 'p', '4', '2', 0, 0, 0, 0, 'm', 'p', '4', '2', 'i', 's', 'o', 'm'}, make([]byte, 64)...)
+	if _, _, err := DetectMedia(mp4); err == nil {
+		t.Fatal("a clip must be refused unless the app opts in")
+	}
+	ct, ext, err := detectMedia(mp4, true)
+	if err != nil || ct != "video/mp4" || ext != ".mp4" {
+		t.Fatalf("mp4: %q %q %v", ct, ext, err)
+	}
+	webm := append([]byte{0x1A, 0x45, 0xDF, 0xA3}, make([]byte, 64)...)
+	if ct, _, err := detectMedia(webm, true); err != nil || ct != "video/webm" {
+		t.Fatalf("webm: %q %v", ct, err)
+	}
+	if !IsVideoType("video/mp4; codecs=avc1") || IsVideoType("image/png") {
+		t.Error("IsVideoType")
+	}
+}

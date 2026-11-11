@@ -49,6 +49,9 @@ func (s *Store) PresignUpload(ctx context.Context, namespace, filename, contentT
 	}
 	ct := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	ext, ok := allowedMedia[ct]
+	if !ok && s.video {
+		ext, ok = videoMedia[ct]
+	}
 	if !ok {
 		return nil, ErrUnsupportedMedia
 	}
@@ -112,7 +115,7 @@ func (s *Store) ConfirmUpload(ctx context.Context, namespace, key string) (size 
 	if err != nil {
 		return 0, "", err
 	}
-	ct, ext, err := DetectMedia(head512)
+	ct, ext, err := detectMedia(head512, s.video)
 	if err != nil {
 		return reject(err)
 	}
@@ -140,9 +143,17 @@ func (s *Store) PresignDownload(ctx context.Context, key string) (string, error)
 			break
 		}
 	}
+	if s.video {
+		for t, ext := range videoMedia {
+			if strings.HasSuffix(objectKey, ext) {
+				ct = t
+				break
+			}
+		}
+	}
 	disposition := "attachment"
 	switch ct {
-	case "image/png", "image/jpeg", "image/gif", "image/webp":
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "video/mp4", "video/webm":
 		disposition = "inline"
 	}
 	req, err := s.presignClient().PresignGetObject(ctx, &s3.GetObjectInput{

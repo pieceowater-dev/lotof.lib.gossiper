@@ -54,8 +54,26 @@ var allowedMedia = map[string]string{
 	"application/pdf": ".pdf",
 }
 
+// videoMedia are the clips an app may opt into (Config.AllowVideo): short MP4 and WebM files. They stay under the
+// same MaxUploadBytes cap (about a minute at a modest bitrate).
+var videoMedia = map[string]string{
+	"video/mp4":  ".mp4",
+	"video/webm": ".webm",
+}
+
+// IsVideoType says whether a content type is one of the clips.
+func IsVideoType(ct string) bool {
+	_, ok := videoMedia[strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))]
+	return ok
+}
+
 // DetectMedia decides what a file is from its bytes; the type and the name the client sent are ignored.
 func DetectMedia(file []byte) (contentType, ext string, err error) {
+	return detectMedia(file, false)
+}
+
+// detectMedia is DetectMedia with the clips allowed when video is true.
+func detectMedia(file []byte, video bool) (contentType, ext string, err error) {
 	if len(file) == 0 {
 		return "", "", ErrUploadEmpty
 	}
@@ -64,6 +82,9 @@ func DetectMedia(file []byte) (contentType, ext string, err error) {
 	}
 	contentType = strings.ToLower(strings.TrimSpace(strings.Split(http.DetectContentType(file), ";")[0]))
 	ext, ok := allowedMedia[contentType]
+	if !ok && video {
+		ext, ok = videoMedia[contentType]
+	}
 	if !ok {
 		return "", "", ErrUnsupportedMedia
 	}
@@ -74,6 +95,9 @@ func DetectMedia(file []byte) (contentType, ext string, err error) {
 // is handed out as opaque bytes, never as something a browser would render.
 func ServableType(stored string) string {
 	ct := strings.ToLower(strings.TrimSpace(strings.Split(stored, ";")[0]))
+	if _, ok := videoMedia[ct]; ok {
+		return ct
+	}
 	if _, ok := allowedMedia[ct]; ok {
 		return ct
 	}
@@ -112,6 +136,8 @@ type Config struct {
 	// Prefix is where this app keeps its files in the shared bucket ("goods"); keys are
 	// <Prefix>/<namespace>/<uuid><ext>, and only keys under it are ever served.
 	Prefix string
+	// AllowVideo lets the app store short MP4 / WebM clips next to images (an app that shows owners' videos).
+	AllowVideo bool
 }
 
 type usageEntry struct {
@@ -125,6 +151,7 @@ type Store struct {
 	bucket string
 	prefix string
 	client *s3.Client
+	video  bool
 
 	usageMu sync.Mutex
 	usage   map[string]usageEntry
@@ -165,6 +192,7 @@ func New(cfg Config) *Store {
 		bucket: strings.TrimSpace(cfg.Bucket),
 		prefix: strings.Trim(strings.TrimSpace(cfg.Prefix), "/"),
 		client: s3.NewFromConfig(awsCfg),
+		video:  cfg.AllowVideo,
 		usage:  map[string]usageEntry{},
 	}
 }
@@ -181,7 +209,7 @@ func (s *Store) UploadImage(ctx context.Context, namespace, filename string, fil
 	}
 
 	// The type comes from the bytes, never from the client.
-	contentType, ext, err := DetectMedia(file)
+	contentType, ext, err := detectMedia(file, s.video)
 	if err != nil {
 		return nil, err
 	}
