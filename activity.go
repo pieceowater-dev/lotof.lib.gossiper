@@ -60,9 +60,11 @@ func CountActivity(ctx context.Context, db Database, namespace string, specs []A
 		if spec.SumColumn != "" {
 			value = "COALESCE(SUM(" + spec.SumColumn + "), 0)"
 		}
-		where := "TRUE"
+		// A nullable time column (closed_at) only counts rows it is set on,
+		// the all-time total included.
+		where := spec.TimeColumn + " IS NOT NULL"
 		if spec.Where != "" {
-			where = "(" + spec.Where + ")"
+			where += " AND (" + spec.Where + ")"
 		}
 		err := db.WithSchemaReadOnly(ctx, namespace, func(tx *gorm.DB) error {
 			var row struct{ Total, Current, Previous float64 }
