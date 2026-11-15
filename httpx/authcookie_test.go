@@ -2,11 +2,14 @@ package httpx
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -195,5 +198,23 @@ func TestRateLimitCountsAuthCookie(t *testing.T) {
 	}
 	if _, body := call(t, app, "GET", map[string]string{"Cookie": "theme=dark"}); body != "anon" {
 		t.Fatalf("other cookie: %q", body)
+	}
+}
+
+func TestTokenMaxAge(t *testing.T) {
+	jwt := func(claims string) string {
+		return "h." + base64.RawURLEncoding.EncodeToString([]byte(claims)) + ".s"
+	}
+	if got := TokenMaxAge(jwt(fmt.Sprintf(`{"exp":%d}`, time.Now().Add(time.Hour).Unix())), 7); got < 3590 || got > 3600 {
+		t.Fatalf("exp in an hour: %d", got)
+	}
+	if got := TokenMaxAge(jwt(`{"exp":1}`), 7); got != 0 {
+		t.Fatalf("expired: %d", got)
+	}
+	if got := TokenMaxAge(jwt(`{"sub":"x"}`), 7); got != 7 {
+		t.Fatalf("no exp: %d", got)
+	}
+	if got := TokenMaxAge("opaque", 7); got != 7 {
+		t.Fatalf("opaque: %d", got)
 	}
 }

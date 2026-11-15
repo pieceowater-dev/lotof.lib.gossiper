@@ -2,6 +2,8 @@ package httpx
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -240,4 +242,29 @@ func httpRequestHostname(r *http.Request) string {
 		return hostnameOf(forwarded)
 	}
 	return hostnameOf(r.Host)
+}
+
+// TokenMaxAge is the cookie MaxAge (seconds) that matches a JWT's lifetime: its exp claim minus now. A token
+// without a readable exp gets fallback; an expired one 0. The signature is not checked: the caller has just minted
+// or verified the token, this only sizes the cookie.
+func TokenMaxAge(token string, fallback int) int {
+	parts := strings.Split(strings.TrimSpace(token), ".")
+	if len(parts) != 3 {
+		return fallback
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fallback
+	}
+	var claims struct {
+		Exp float64 `json:"exp"`
+	}
+	if json.Unmarshal(raw, &claims) != nil || claims.Exp <= 0 {
+		return fallback
+	}
+	left := int(time.Until(time.Unix(int64(claims.Exp), 0)).Seconds())
+	if left < 0 {
+		return 0
+	}
+	return left
 }
