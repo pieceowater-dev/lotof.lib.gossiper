@@ -31,7 +31,8 @@ type RateLimitConfig struct {
 	GraphQLPaths []string
 	// SkipPrefixes are never limited (default: health probes, /media/, /.well-known/).
 	SkipPrefixes []string
-	// CredentialHeaders besides Authorization that mark a request as carrying credentials.
+	// CredentialHeaders besides Authorization that mark a request as carrying credentials. An auth cookie
+	// (IsAuthCookieName) counts as well.
 	CredentialHeaders []string
 	// MaxKeys bounds memory: past it the oldest idle buckets are dropped first (default 100000).
 	MaxKeys int
@@ -295,5 +296,12 @@ func hasCredentials(c *fiber.Ctx, extra []string) bool {
 			return true
 		}
 	}
-	return false
+	// A browser on HttpOnly cookies sends its token only as a cookie (AUTH_COOKIE_HTTPONLY).
+	found := false
+	c.Request().Header.VisitAllCookie(func(key, value []byte) {
+		if !found && len(value) > 0 && IsAuthCookieName(string(key)) {
+			found = true
+		}
+	})
+	return found
 }
