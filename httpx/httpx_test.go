@@ -223,3 +223,18 @@ func TestRequestIsSecure(t *testing.T) {
 		})
 	}
 }
+
+// Nine auth cookies plus analytics cookies run past fasthttp's 4 KiB default.
+func TestFiberConfig_AcceptsLargeCookieHeader(t *testing.T) {
+	app := fiber.New(FiberConfig())
+	app.Get("/q", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+	req := httptest.NewRequest("GET", "/q", nil)
+	req.Header.Set("Cookie", "a="+strings.Repeat("x", 12<<10))
+	resp, err := app.Test(req, 10_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("a 12 KiB cookie header was refused with %d", resp.StatusCode)
+	}
+}

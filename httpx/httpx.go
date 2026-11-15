@@ -182,12 +182,19 @@ const (
 // here would cut them off mid-stream. The per-request budget is enforced
 // where it can be: a 60s deadline on every outgoing gRPC call, and the ALB's
 // own idle timeout in front.
+// FiberReadBufferSize caps the request line plus headers.
+const FiberReadBufferSize = 32 << 10
+
 func FiberConfig() fiber.Config {
 	return fiber.Config{
 		DisableStartupMessage: true,
 		ReadTimeout:           fiberReadTimeout,
 		IdleTimeout:           fiberIdleTimeout,
 		BodyLimit:             FiberBodyLimit,
+		// The browser sends every lota.tools cookie to every gateway, and with the
+		// auth tokens kept in cookies the header block outgrows fasthttp's 4 KiB
+		// default (431 Request Header Fields Too Large).
+		ReadBufferSize: FiberReadBufferSize,
 		// c.Get and friends otherwise return strings that alias fasthttp's
 		// reusable buffers. Forwarded as gRPC metadata they get overwritten
 		// while the transport is still encoding them, which corrupts the
