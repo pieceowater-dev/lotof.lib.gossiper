@@ -2,6 +2,7 @@ package tenancy
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -20,6 +21,16 @@ const (
 	// so anyone can name one -- held a handler for a minute and re-triggered
 	// a full tenant warmup on every iteration.
 	DefaultReadyMaxWait = 3 * time.Second
+
+	// TenantPreparingCode marks the Unavailable answer given while a tenant's
+	// schema is being prepared. It is a prefix of the status message, so a
+	// gateway can turn it into a machine-readable code and a client can tell
+	// "first start, keep waiting" from a real outage.
+	TenantPreparingCode = "tenant_preparing"
+
+	// ensureTimeout bounds one provisioning attempt. It runs detached from
+	// the request: the request gives up after maxWait, provisioning must not.
+	ensureTimeout = 3 * time.Minute
 )
 
 // ReadinessBackend is what the readiness gate asks about a tenant.
@@ -49,6 +60,55 @@ type Readiness struct {
 	backend         ReadinessBackend
 	excludedMethods map[string]struct{}
 	maxWait         time.Duration
+
+	ensureMu sync.Mutex
+	ensuring map[string]*ensureCall
+}
+
+// ensureCall is one in-flight provisioning of a namespace, shared by every
+// request that arrives for it meanwhile.
+type ensureCall struct {
+	done chan struct{}
+	err  error
+}
+
+func (c *ensureCall) finished() bool {
+	select {
+	case <-c.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// startEnsure provisions the namespace once, whatever number of requests ask.
+// A first screen fires many queries at once; each used to start its own
+// provisioning on its own request context, so they raced for the same schema
+// and were cancelled halfway whenever the browser or gateway gave up -- the
+// AutoMigrate transaction rolled back and the tenant never became ready. The
+// work now runs detached from every request, once per namespace.
+func (m *Readiness) startEnsure(ctx context.Context, ensurer AppTenantEnsurer, namespace, userID string) *ensureCall {
+	m.ensureMu.Lock()
+	defer m.ensureMu.Unlock()
+	if call, ok := m.ensuring[namespace]; ok {
+		return call
+	}
+	if m.ensuring == nil {
+		m.ensuring = make(map[string]*ensureCall)
+	}
+	call := &ensureCall{done: make(chan struct{})}
+	m.ensuring[namespace] = call
+
+	detached, cancel := context.WithTimeout(context.WithoutCancel(ctx), ensureTimeout)
+	go func() {
+		defer cancel()
+		call.err = ensurer.EnsureAppTenant(detached, namespace, userID)
+		m.ensureMu.Lock()
+		delete(m.ensuring, namespace)
+		m.ensureMu.Unlock()
+		close(call.done)
+	}()
+	return call
 }
 
 // NewReadiness builds the gate; excludedMethods pass through ungated
@@ -81,6 +141,8 @@ func (m *Readiness) MiddlewareMethod() grpc.UnaryServerInterceptor {
 		giveUpAt := time.Now().Add(m.maxWait)
 		delay := readyInitialRetryDelay
 		warmupTriggered := false
+		var ensure *ensureCall
+		ensureChecked := false
 
 		for {
 			ready, err := m.backend.IsReady(ctx, namespace)
@@ -103,12 +165,28 @@ func (m *Readiness) MiddlewareMethod() grpc.UnaryServerInterceptor {
 				// scoped to the calling user's own membership.
 				if ensurer, ok := m.backend.(AppTenantEnsurer); ok {
 					if userMetadata, ok := UserMetadataFromContext(ctx); ok && userMetadata.GetUserId() != "" {
-						if ensureErr := ensurer.EnsureAppTenant(ctx, namespace, userMetadata.GetUserId()); ensureErr == nil {
-							if ready, readyErr := m.backend.IsReady(ctx, namespace); readyErr == nil && ready {
-								return handler(ctx, req)
-							}
-						}
+						ensure = m.startEnsure(ctx, ensurer, namespace, userMetadata.GetUserId())
 					}
+				}
+			}
+
+			if ensure != nil && !ensure.finished() {
+				// Provisioning is still running (it takes seconds on a first start). Wait for it, but
+				// never past this request's budget.
+				wait := time.NewTimer(time.Until(giveUpAt))
+				select {
+				case <-ensure.done:
+				case <-ctx.Done():
+					wait.Stop()
+					return nil, notReadyError(ctx, err)
+				case <-wait.C:
+				}
+				wait.Stop()
+			}
+			if ensure != nil && ensure.finished() && ensure.err == nil && !ensureChecked {
+				ensureChecked = true
+				if ready, readyErr := m.backend.IsReady(ctx, namespace); readyErr == nil && ready {
+					return handler(ctx, req)
 				}
 			}
 
@@ -118,7 +196,9 @@ func (m *Readiness) MiddlewareMethod() grpc.UnaryServerInterceptor {
 			// namespace can. Say so immediately with a code callers do not
 			// retry, so a made-up namespace costs one short call instead of
 			// the wait budget times the read-retry count.
-			if migrationStatus, _, infoErr := m.backend.Info(ctx, namespace); infoErr == nil && migrationStatus == "" {
+			// Not while Hub is still provisioning it: the record appears when that finishes.
+			provisioning := ensure != nil && !ensure.finished()
+			if migrationStatus, _, infoErr := m.backend.Info(ctx, namespace); !provisioning && infoErr == nil && migrationStatus == "" {
 				return nil, status.Errorf(codes.FailedPrecondition,
 					"namespace %q is not provisioned for this service", namespace)
 			}
@@ -150,7 +230,7 @@ func (m *Readiness) MiddlewareMethod() grpc.UnaryServerInterceptor {
 func notReadyError(ctx context.Context, lastErr error) error {
 	_ = grpc.SetHeader(ctx, metadata.Pairs("retry-after", "1"))
 	if lastErr != nil {
-		return status.Errorf(codes.Unavailable, "tenant readiness check failed: %v", lastErr)
+		return status.Errorf(codes.Unavailable, "%s: tenant readiness check failed: %v", TenantPreparingCode, lastErr)
 	}
-	return status.Error(codes.Unavailable, "tenant migration in progress, retry later")
+	return status.Error(codes.Unavailable, TenantPreparingCode+": tenant migration in progress, retry later")
 }

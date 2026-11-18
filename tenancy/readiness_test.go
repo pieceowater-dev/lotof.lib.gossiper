@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -54,12 +55,19 @@ func (s *stubBackend) EnsureAppTenant(context.Context, string, string) error {
 
 func callReadiness(t *testing.T, b ReadinessBackend, ctx context.Context, maxWait time.Duration) (bool, error) {
 	t.Helper()
+	return callGate(t, NewReadinessWithWait(b, []string{"/exempt.Service/Method"}, maxWait), ctx)
+}
+
+// callGate sends one request through an existing gate, as a service's single
+// gate serves every request.
+func callGate(t *testing.T, gate *Readiness, ctx context.Context) (bool, error) {
+	t.Helper()
 	handled := false
 	handler := func(context.Context, any) (any, error) {
 		handled = true
 		return "ok", nil
 	}
-	icpt := NewReadinessWithWait(b, []string{"/exempt.Service/Method"}, maxWait).MiddlewareMethod()
+	icpt := gate.MiddlewareMethod()
 	_, err := icpt(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/plans.Service/List"}, handler)
 	return handled, err
 }
@@ -178,5 +186,105 @@ func TestReadiness_ExemptMethodSkipsTheGate(t *testing.T) {
 	}
 	if b.checks != 0 {
 		t.Fatalf("an exempt method must not be checked, got %d checks", b.checks)
+	}
+}
+
+// slowEnsurer provisions after a delay, on whatever context it is handed, and
+// reports whether that context was cancelled before it finished.
+type slowEnsurer struct {
+	stubBackend
+	mu        sync.Mutex
+	calls     int
+	delay     time.Duration
+	cancelled bool
+	finished  chan struct{}
+	once      sync.Once
+	ready     bool
+}
+
+func (s *slowEnsurer) IsReady(context.Context, string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ready, nil
+}
+
+func (s *slowEnsurer) TriggerWarmup() {}
+
+func (s *slowEnsurer) Info(context.Context, string) (string, string, error) {
+	return "", "", nil // no record yet: the very first connection
+}
+
+func (s *slowEnsurer) EnsureAppTenant(ctx context.Context, _, _ string) error {
+	s.mu.Lock()
+	s.calls++
+	s.mu.Unlock()
+	select {
+	case <-time.After(s.delay):
+	case <-ctx.Done():
+		s.mu.Lock()
+		s.cancelled = true
+		s.mu.Unlock()
+		s.once.Do(func() { close(s.finished) })
+		return ctx.Err()
+	}
+	s.mu.Lock()
+	s.ready = true
+	s.mu.Unlock()
+	s.once.Do(func() { close(s.finished) })
+	return nil
+}
+
+func TestReadiness_SlowProvisioningAnswersTenantPreparingNotNotProvisioned(t *testing.T) {
+	b := &slowEnsurer{delay: 400 * time.Millisecond, finished: make(chan struct{})}
+	_, err := callReadiness(t, b, WithUserMetadata(context.Background(), "user-1", "ns-new", ""), 100*time.Millisecond)
+	if status.Code(err) != codes.Unavailable {
+		t.Fatalf("a tenant still being provisioned must answer Unavailable, got %v", err)
+	}
+	if !strings.HasPrefix(status.Convert(err).Message(), TenantPreparingCode) {
+		t.Fatalf("the answer must carry the %q code, got %q", TenantPreparingCode, status.Convert(err).Message())
+	}
+	<-b.finished // the provisioning goes on after the request has given up
+	if b.cancelled {
+		t.Fatal("provisioning was cancelled together with the request that started it")
+	}
+
+	handled, err := callReadiness(t, b, WithUserMetadata(context.Background(), "user-1", "ns-new", ""), time.Second)
+	if err != nil || !handled {
+		t.Fatalf("the retry must pass once provisioning finished, handled=%v err=%v", handled, err)
+	}
+}
+
+func TestReadiness_ConcurrentRequestsShareOneProvisioning(t *testing.T) {
+	b := &slowEnsurer{delay: 300 * time.Millisecond, finished: make(chan struct{})}
+	gate := NewReadinessWithWait(b, nil, 2*time.Second)
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			handled, err := callGate(t, gate, WithUserMetadata(context.Background(), "user-1", "ns-new", ""))
+			if err != nil || !handled {
+				t.Errorf("handled=%v err=%v", handled, err)
+			}
+		}()
+	}
+	wg.Wait()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.calls != 1 {
+		t.Fatalf("eight simultaneous first requests started %d provisionings, want 1", b.calls)
+	}
+}
+
+func TestReadiness_CancelledRequestDoesNotStopProvisioning(t *testing.T) {
+	b := &slowEnsurer{delay: 200 * time.Millisecond, finished: make(chan struct{})}
+	ctx, cancel := context.WithCancel(WithUserMetadata(context.Background(), "user-1", "ns-new", ""))
+	go func() { time.Sleep(30 * time.Millisecond); cancel() }()
+	if _, err := callReadiness(t, b, ctx, 2*time.Second); status.Code(err) != codes.Unavailable {
+		t.Fatalf("expected Unavailable for the cancelled request, got %v", err)
+	}
+	<-b.finished
+	if b.cancelled {
+		t.Fatal("cancelling the request cancelled the provisioning")
 	}
 }

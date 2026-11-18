@@ -94,7 +94,20 @@ type Manager struct {
 
 	dbMu sync.Mutex
 	db   Database
+
+	migMu      sync.Mutex
+	migrations map[string]*migrationCall
 }
+
+// migrationCall is one in-flight migration of a namespace in this process.
+type migrationCall struct {
+	done chan struct{}
+	err  error
+}
+
+// migrateTimeout bounds one tenant migration. It runs detached from the
+// request that asked for it.
+const migrateTimeout = 5 * time.Minute
 
 // NewManager builds the manager for one service.
 func NewManager(cfg ManagerConfig) *Manager {
@@ -192,21 +205,53 @@ func (m *Manager) MigrateTenant(ctx context.Context, database Database, t *Encry
 	if t == nil || t.Namespace == "" {
 		return fmt.Errorf("tenant namespace is required")
 	}
+	namespace := t.Namespace
 
-	return m.tenantControl(database).Migrate(ctx, t.Namespace,
-		func(context.Context) error {
-			if !m.SyncTenant(database, t) {
-				return fmt.Errorf("sync tenant failed for namespace %q", t.Namespace)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			if migrateFn == nil {
-				return nil
-			}
-			return migrateFn(ctx, t.Namespace)
-		},
-	)
+	// One migration per namespace per process, run detached from the caller. AutoMigrate of the whole
+	// model set is one transaction taking seconds; when it ran on the request's own context, every
+	// browser or gateway timeout rolled it back, counted a failure (the backoff grows to 5 minutes) and
+	// the next request started the same work again, so a new tenant could stay unavailable for minutes.
+	// Callers wait for the shared result, or leave when their own context ends, without stopping it.
+	m.migMu.Lock()
+	call, running := m.migrations[namespace]
+	if !running {
+		if m.migrations == nil {
+			m.migrations = make(map[string]*migrationCall)
+		}
+		call = &migrationCall{done: make(chan struct{})}
+		m.migrations[namespace] = call
+
+		detached, cancel := context.WithTimeout(context.WithoutCancel(ctx), migrateTimeout)
+		go func() {
+			defer cancel()
+			call.err = m.tenantControl(database).Migrate(detached, namespace,
+				func(context.Context) error {
+					if !m.SyncTenant(database, t) {
+						return fmt.Errorf("sync tenant failed for namespace %q", namespace)
+					}
+					return nil
+				},
+				func(ctx context.Context) error {
+					if migrateFn == nil {
+						return nil
+					}
+					return migrateFn(ctx, namespace)
+				},
+			)
+			m.migMu.Lock()
+			delete(m.migrations, namespace)
+			m.migMu.Unlock()
+			close(call.done)
+		}()
+	}
+	m.migMu.Unlock()
+
+	select {
+	case <-call.done:
+		return call.err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // MigrateSchema AutoMigrates models inside the namespace's schema, with the
