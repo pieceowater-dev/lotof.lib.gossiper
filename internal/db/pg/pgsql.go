@@ -195,7 +195,11 @@ func (p *Postgres) WithSchemaReadOnly(ctx context.Context, schema string, fn fun
 		if err := tx.Exec(fmt.Sprintf("SET search_path TO %s", quoted)).Error; err != nil {
 			return fmt.Errorf("failed to set search_path: %w", err)
 		}
-		return fn(tx)
+		// Connection hands over a handle whose statement is shared by every chain built on it, so the table and
+		// conditions of one query leaked into the next (a Count on clients followed by a Find on rules ran
+		// SELECT * FROM clients WHERE id = ? AND trigger = ?). A new session gives each chain a fresh statement
+		// on the same pinned connection, the way Transaction does.
+		return fn(tx.Session(&gorm.Session{NewDB: true}))
 	})
 }
 
