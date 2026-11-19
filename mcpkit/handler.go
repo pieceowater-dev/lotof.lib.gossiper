@@ -73,7 +73,7 @@ func (c *Config) defaults() {
 // principal gets a server without tools. The handler uses it for every request; tests may call it directly.
 func (c *Config) NewServer(p *Principal) *sdk.Server {
 	c.defaults()
-	srv := sdk.NewServer(&sdk.Implementation{Name: c.Name, Version: c.Version}, &sdk.ServerOptions{Instructions: c.Instructions})
+	srv := sdk.NewServer(&sdk.Implementation{Name: c.Name, Version: c.Version}, &sdk.ServerOptions{Instructions: c.Instructions, SchemaCache: schemas})
 	if p == nil {
 		return srv
 	}
@@ -83,6 +83,11 @@ func (c *Config) NewServer(p *Principal) *sdk.Server {
 	}
 	return srv
 }
+
+// schemas keeps the JSON schemas inferred from the tools' input and output types. A server is built for every
+// request, and without the cache each one reflected and resolved the schemas of every tool again: a hundred tools
+// cost about 200 ms of CPU and megabytes of garbage per call, enough to OOM a gateway under a burst of calls.
+var schemas = sdk.NewSchemaCache()
 
 type principalKey struct{}
 
