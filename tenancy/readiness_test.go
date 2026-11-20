@@ -192,7 +192,6 @@ func TestReadiness_ExemptMethodSkipsTheGate(t *testing.T) {
 // slowEnsurer provisions after a delay, on whatever context it is handed, and
 // reports whether that context was cancelled before it finished.
 type slowEnsurer struct {
-	stubBackend
 	mu        sync.Mutex
 	calls     int
 	delay     time.Duration
