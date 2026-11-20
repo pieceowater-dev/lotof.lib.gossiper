@@ -8,6 +8,8 @@
 //     sign-in, and one log line per tool call (who, which tool, outcome, never the arguments).
 //   - Principal: who the key belongs to (namespace, user, optional site binding, scopes) with Need and Site checks.
 //   - AddTool: registers a typed tool behind a permission class (Read, Write, Act), so a tool cannot forget its check.
+//   - describe_server: a read tool every server gets, telling an AI what the server is for (Instructions, the optional
+//     longer Guide), what its key may do and every tool with its class and, on request, its schema.
 //   - GRPCError: turns a gRPC status into the plain message a model can act on.
 //   - package mcpkit/oauth: the optional sign-in server for AI clients (client registration, authorize -> consent page,
 //     token with PKCE, sealed one-time codes) that hands out ordinary access keys through a KeyIssuer.

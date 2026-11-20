@@ -242,3 +242,46 @@ func TestPanicInToolDoesNotEndTheProcess(t *testing.T) {
 		t.Fatalf("a panic must come back as an error result, got %q (isError=%v)", msg, isErr)
 	}
 }
+
+func TestDescribeServerTellsWhatTheKeyMayDo(t *testing.T) {
+	c := testConfig(nil)
+	c.Instructions, c.Guide = "how to use", "long manual"
+	p := &Principal{TokenID: "k", Namespace: "ns", Scopes: map[string]bool{"read": true}}
+	d, err := c.Describe(context.Background(), p, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Instructions != "how to use" || d.Guide != "long manual" || len(d.Tools) != 3 || d.Counts["read"] != 1 {
+		t.Fatalf("describe must carry the guide and every tool but itself, got %+v", d)
+	}
+	allowed := map[string]bool{}
+	for _, tl := range d.Tools {
+		allowed[tl.Name] = tl.Allowed
+		if tl.InputSchema != nil {
+			t.Fatalf("schemas only on request, got %v", tl.InputSchema)
+		}
+	}
+	if !allowed["look"] || allowed["edit"] || allowed["go_live"] {
+		t.Fatalf("allowed must follow the key's scopes, got %v", allowed)
+	}
+	one, err := c.Describe(context.Background(), p, "edit", true)
+	if err != nil || len(one.Tools) != 1 || one.Tools[0].InputSchema["properties"].(map[string]any)["n"] == nil {
+		t.Fatalf("tool=edit must return its schema, got %+v %v", one, err)
+	}
+	ct, st := sdk.NewInMemoryTransports()
+	ctx := context.Background()
+	ss, err := c.NewServer(p).Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ss.Close()
+	cs, err := sdk.NewClient(&sdk.Implementation{Name: "t", Version: "1"}, nil).Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+	res, err := cs.CallTool(ctx, &sdk.CallToolParams{Name: DescribeTool, Arguments: map[string]any{}})
+	if err != nil || res.IsError || !strings.Contains(res.Content[0].(*sdk.TextContent).Text, "go_live") {
+		t.Fatalf("describe_server must be callable with a read key, got %+v %v", res, err)
+	}
+}

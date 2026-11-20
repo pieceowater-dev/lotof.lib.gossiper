@@ -33,7 +33,10 @@ type Config struct {
 	Name         string // server name shown to the client, e.g. "lota-pages"
 	Version      string // default "1.0.0"
 	Instructions string // usage notes the client shows to the model
-	Resolver     Resolver
+	// Guide is an optional longer manual (workflows, examples) that only describe_server returns, so it costs the
+	// model nothing until it asks.
+	Guide    string
+	Resolver Resolver
 
 	// Register adds the tools for one authenticated request. Use AddTool inside it.
 	Register func(srv *sdk.Server, p *Principal)
@@ -69,7 +72,7 @@ func (c *Config) defaults() {
 	}
 }
 
-// NewServer builds the sdk server for one principal: the tools from Register plus the call log. A nil
+// NewServer builds the sdk server for one principal: the tools from Register, describe_server and the call log. A nil
 // principal gets a server without tools. The handler uses it for every request; tests may call it directly.
 func (c *Config) NewServer(p *Principal) *sdk.Server {
 	c.defaults()
@@ -81,6 +84,7 @@ func (c *Config) NewServer(p *Principal) *sdk.Server {
 	if c.Register != nil {
 		c.Register(srv, p)
 	}
+	c.addDescribe(srv, p)
 	return srv
 }
 
