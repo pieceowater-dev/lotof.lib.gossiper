@@ -296,7 +296,7 @@ func hasCredentials(c *fiber.Ctx, extra []string) bool {
 			return true
 		}
 	}
-	// A browser on HttpOnly cookies sends its token only as a cookie (AUTH_COOKIE_HTTPONLY).
+	// A browser sends its token only as an HttpOnly cookie.
 	found := false
 	c.Request().Header.VisitAllCookie(func(key, value []byte) {
 		if !found && len(value) > 0 && IsAuthCookieName(string(key)) {

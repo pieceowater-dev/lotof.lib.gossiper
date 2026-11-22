@@ -118,20 +118,14 @@ func TestSetAuthCookie(t *testing.T) {
 		return nil
 	})
 
-	t.Setenv(AuthCookieHTTPOnlyEnv, "")
 	sc := setCookieHeader(t, app, "lota.tools")
-	for _, want := range []string{"token=abc", "max-age=900", "path=/", "secure", "SameSite=Lax"} {
+	for _, want := range []string{"token=abc", "max-age=900", "path=/", "secure", "SameSite=Lax", "httponly"} {
 		if !strings.Contains(strings.ToLower(sc), strings.ToLower(want)) {
 			t.Fatalf("missing %q in %q", want, sc)
 		}
 	}
-	if strings.Contains(strings.ToLower(sc), "httponly") || strings.Contains(strings.ToLower(sc), "domain=") {
-		t.Fatalf("flag off must be readable and host-only: %q", sc)
-	}
-
-	t.Setenv(AuthCookieHTTPOnlyEnv, "true")
-	if sc := setCookieHeader(t, app, "lota.tools"); !strings.Contains(strings.ToLower(sc), "httponly") {
-		t.Fatalf("flag on must be HttpOnly: %q", sc)
+	if strings.Contains(strings.ToLower(sc), "domain=") {
+		t.Fatalf("must be host-only: %q", sc)
 	}
 	if sc := setCookieHeader(t, app, "localhost:8080"); strings.Contains(strings.ToLower(sc), "secure") {
 		t.Fatalf("localhost must not be Secure: %q", sc)
@@ -154,7 +148,6 @@ func TestSetAuthCookieFromContext(t *testing.T) {
 	if SetAuthCookieFromContext(context.Background(), "x", "y", 1) {
 		t.Fatal("no response recorded, must report false")
 	}
-	t.Setenv(AuthCookieHTTPOnlyEnv, "true")
 	r := httptest.NewRequest("POST", "http://pod:8080/query", nil)
 	r.Header.Set("X-Forwarded-Host", "lota.tools")
 	w := httptest.NewRecorder()
@@ -216,5 +209,27 @@ func TestTokenMaxAge(t *testing.T) {
 	}
 	if got := TokenMaxAge("opaque", 7); got != 7 {
 		t.Fatalf("opaque: %d", got)
+	}
+}
+
+func TestBodyToken(t *testing.T) {
+	cookieOnly := httptest.NewRequest("POST", "http://pod:8080/query", nil)
+	ctx := WithResponseCookies(cookieOnly.Context(), httptest.NewRecorder(), cookieOnly)
+	if got := BodyToken(ctx, "tok", true); got != "" {
+		t.Fatalf("cookie-authenticated browser must get no body token, got %q", got)
+	}
+	if got := BodyToken(ctx, "tok", false); got != "tok" {
+		t.Fatalf("no cookie set: the body is the only way out, got %q", got)
+	}
+	for _, h := range []string{"Authorization", "HubAuthorization"} {
+		withHeader := httptest.NewRequest("POST", "http://pod:8080/query", nil)
+		withHeader.Header.Set(h, "Bearer hub")
+		ctx := WithResponseCookies(withHeader.Context(), httptest.NewRecorder(), withHeader)
+		if got := BodyToken(ctx, "tok", true); got != "tok" {
+			t.Fatalf("%s caller keeps the body token, got %q", h, got)
+		}
+	}
+	if got := BodyToken(context.Background(), "tok", true); got != "tok" {
+		t.Fatalf("no recorded request keeps the token, got %q", got)
 	}
 }

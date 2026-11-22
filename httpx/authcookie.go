@@ -6,23 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-// AuthCookieHTTPOnlyEnv names the switch that moves the access tokens into HttpOnly cookies. Off (anything but
-// "true") keeps them readable by the web client, the way they have always been; on, script can no longer read them
-// and the gateways take the token from the cookie the browser attaches by itself.
-const AuthCookieHTTPOnlyEnv = "AUTH_COOKIE_HTTPONLY"
-
-// AuthCookieHTTPOnly reports whether access-token cookies are set HttpOnly (AUTH_COOKIE_HTTPONLY=true).
-func AuthCookieHTTPOnly() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv(AuthCookieHTTPOnlyEnv)), "true")
-}
 
 // IsLocalHostname reports a development host, where cookies cannot carry Secure over plain HTTP.
 func IsLocalHostname(hostname string) bool {
@@ -40,8 +29,8 @@ func IsAuthCookieName(name string) bool {
 }
 
 // AuthCookie builds an access-token cookie with the hub's session settings: host-only (no Domain, so sites
-// published on sibling subdomains never see it), Path=/, SameSite=Lax, Secure everywhere except localhost, HttpOnly
-// as AUTH_COOKIE_HTTPONLY says. maxAge is in seconds; a negative one deletes the cookie.
+// published on sibling subdomains never see it), Path=/, SameSite=Lax, Secure everywhere except localhost, always
+// HttpOnly: script never reads a token (GW-12). maxAge is in seconds; a negative one deletes the cookie.
 func AuthCookie(c *fiber.Ctx, name, value string, maxAge int) *fiber.Cookie {
 	hc := newAuthHTTPCookie(RequestHostname(c), name, value, maxAge)
 	return &fiber.Cookie{
@@ -73,7 +62,7 @@ func newAuthHTTPCookie(hostname, name, value string, maxAge int) *http.Cookie {
 		Path:     "/",
 		MaxAge:   maxAge,
 		Secure:   !IsLocalHostname(hostname),
-		HttpOnly: AuthCookieHTTPOnly(),
+		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}
 	if maxAge < 0 {
@@ -204,9 +193,10 @@ func CookieToken(ctx context.Context, name string) string {
 }
 
 type responseCookies struct {
-	mu       sync.Mutex
-	w        http.ResponseWriter
-	hostname string
+	mu         sync.Mutex
+	w          http.ResponseWriter
+	hostname   string
+	headerAuth bool
 }
 
 type responseCookiesKey struct{}
@@ -215,7 +205,25 @@ type responseCookiesKey struct{}
 // w of request r, through SetAuthCookieFromContext. Mount it where the gateway already wraps its context for the
 // handler (inside the fasthttpadaptor func).
 func WithResponseCookies(ctx context.Context, w http.ResponseWriter, r *http.Request) context.Context {
-	return context.WithValue(ctx, responseCookiesKey{}, &responseCookies{w: w, hostname: httpRequestHostname(r)})
+	rc := &responseCookies{w: w, hostname: httpRequestHostname(r)}
+	if r != nil {
+		rc.headerAuth = strings.TrimSpace(r.Header.Get("Authorization")) != "" || strings.TrimSpace(r.Header.Get("HubAuthorization")) != ""
+	}
+	return context.WithValue(ctx, responseCookiesKey{}, rc)
+}
+
+// BodyToken is what a response that minted token and set it as a cookie (SetAuthCookieFromContext reported set)
+// carries in its body: the token for a caller that authenticated with a header (the web's server render, MCP,
+// scripts), "" for a browser on its cookies, whose script must never see a token (GW-12). Without a cookie the body
+// is the only way out, so the token stays.
+func BodyToken(ctx context.Context, token string, set bool) string {
+	if !set || ctx == nil {
+		return token
+	}
+	if rc, ok := ctx.Value(responseCookiesKey{}).(*responseCookies); ok && rc != nil && !rc.headerAuth {
+		return ""
+	}
+	return token
 }
 
 // SetAuthCookieFromContext sets an access-token cookie (the AuthCookie settings) on the response recorded by
